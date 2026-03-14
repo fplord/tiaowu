@@ -86,15 +86,7 @@ body {
 
 /* ── scoreboard ── */
 #scoreboard {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  z-index: 5;
+  display: none;
 }
 
 .sb-row {

@@ -73,9 +73,11 @@
     const LABEL_COLORS = { perfect: '#c084fc', great: '#77ddff', good: '#aad888', bad: '#ff7766', miss: '#ff4444' };
 
     const emojiAnims = {}; // emoji -> { startTime, particles }
+    const barPositions = {}; // emoji -> current animated x
+    const barScores = {};    // emoji -> current animated score
     let animLoopRunning = false;
 
-    function triggerPerfect(emoji, x, cy) {
+    function triggerPerfect(emoji) {
       const N = 12;
       emojiAnims[emoji] = {
         startTime: performance.now(),
@@ -85,7 +87,6 @@
           r: 6 + Math.random() * 4,
           color: ['#c084fc', '#e0b0ff', '#ffffff', '#f0c0ff'][Math.floor(Math.random() * 4)],
         })),
-        x, cy,
       };
       if (!animLoopRunning) {
         animLoopRunning = true;
@@ -102,17 +103,63 @@
     }
 
     function drawDancefloor() {
-      dfc.clearRect(0, 0, dfCanvas.width, dfCanvas.height);
-      if (!playerOrder.length) return;
-      const step = dfCanvas.width / playerOrder.length;
-      const cy = dfCanvas.height / 2;
-      dfc.textAlign = 'center';
-      const boardMap = Object.fromEntries(lastBoard.map(p => [p.emoji, p]));
+      const W = dfCanvas.width, H = dfCanvas.height;
+      dfc.clearRect(0, 0, W, H);
+      if (!lastBoard.length) return;
 
-      playerOrder.forEach((emoji, i) => {
-        const p = boardMap[emoji] || { emoji };
-        const x = step * i + step / 2;
-        const lbl = shownLabels[p.emoji] || '';
+      const step = W / lastBoard.length;
+      const barW = step * 0.55;
+      const BOT = 16;
+      const EMOJI_HALF = 56; // approx half-height of 128px emoji
+      const TOP_PAD = 60;    // space above emoji for label
+      const maxScore = maxPossibleScore;
+
+      // beat pulse (shared across all emojis)
+      const beatT = audio.paused ? 0 : audio.currentTime;
+      let pulse = 0;
+      if (!audio.paused && allBeats.length) {
+        const lastBeat = allBeats.filter(b => b <= beatT).at(-1);
+        if (lastBeat !== undefined) {
+          const elapsed = beatT - lastBeat;
+          if (elapsed < 0.25) pulse = (1 - elapsed / 0.20) * 0.12;
+        }
+      }
+
+      dfc.textAlign = 'center';
+
+      lastBoard.forEach((p, i) => {
+        const emoji = p.emoji;
+        const targetX = step * i + step / 2;
+        if (barPositions[emoji] === undefined) barPositions[emoji] = targetX;
+        barPositions[emoji] += (targetX - barPositions[emoji]) * 0.1;
+        const x = barPositions[emoji];
+        const lbl = shownLabels[emoji] || '';
+
+        // bar
+        const norm = p.score / maxScore;
+        const minBarH = 10;
+        const maxBarH = H - TOP_PAD - BOT;
+        const barH = minBarH + norm * (maxBarH - minBarH);
+        const barY = H - BOT - barH;
+
+        dfc.save();
+        dfc.fillStyle = p.emoji === myEmoji ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)';
+        dfc.beginPath();
+        dfc.roundRect(x - barW / 2, barY, barW, barH, 8);
+        dfc.fill();
+        dfc.restore();
+
+        // score at bottom of bar
+        dfc.save();
+        dfc.font = 'bold 24px monospace';
+        dfc.textBaseline = 'bottom';
+        dfc.fillStyle = 'rgba(255,255,255,0.7)';
+        dfc.fillText(p.score, x, H - BOT - 4);
+        dfc.restore();
+    
+
+        // emoji sits on top of bar
+        const emojiY = barY - EMOJI_HALF + 10;
         const anim = emojiAnims[emoji];
 
         // glow ring + particles
@@ -121,71 +168,55 @@
           if (t >= 1) {
             delete emojiAnims[emoji];
           } else {
-            // expanding glow ring
             dfc.save();
             const ringR = 68 + t * 88;
-            const ringAlpha = (1 - t) * 0.9;
             dfc.beginPath();
-            dfc.arc(x, cy, ringR, 0, Math.PI * 2);
-            dfc.strokeStyle = `rgba(192,132,252,${ringAlpha})`;
+            dfc.arc(x, emojiY, ringR, 0, Math.PI * 2);
+            dfc.strokeStyle = `rgba(192,132,252,${(1 - t) * 0.9})`;
             dfc.lineWidth = 4 * (1 - t) + 1;
             dfc.shadowBlur = 20;
             dfc.shadowColor = '#c084fc';
             dfc.stroke();
             dfc.restore();
 
-            // particles
-            anim.particles.forEach(p => {
-              const dist = t * p.speed;
-              const px = x + Math.cos(p.angle) * dist;
-              const py = cy + Math.sin(p.angle) * dist;
-              const alpha = 1 - t;
+            anim.particles.forEach(part => {
+              const dist = t * part.speed;
               dfc.save();
-              dfc.globalAlpha = alpha;
+              dfc.globalAlpha = 1 - t;
               dfc.beginPath();
-              dfc.arc(px, py, p.r * (1 - t * 0.4), 0, Math.PI * 2);
-              dfc.fillStyle = p.color;
+              dfc.arc(x + Math.cos(part.angle) * dist, emojiY + Math.sin(part.angle) * dist, part.r * (1 - t * 0.4), 0, Math.PI * 2);
+              dfc.fillStyle = part.color;
               dfc.shadowBlur = 8;
-              dfc.shadowColor = p.color;
+              dfc.shadowColor = part.color;
               dfc.fill();
               dfc.restore();
             });
           }
         }
 
-        // emoji (with beat pulse)
-        const beatT = audio.paused ? 0 : audio.currentTime;
-        let pulse = 0;
-        if (!audio.paused && allBeats.length) {
-          const lastBeat = allBeats.filter(b => b <= beatT).at(-1);
-          if (lastBeat !== undefined) {
-            const elapsed = beatT - lastBeat;
-            if (elapsed < 0.25) pulse = (1 - elapsed / 0.20) * 0.12;
-          }
-        }
+        // emoji
         const scale = 1 + pulse;
         dfc.save();
-        dfc.translate(x, cy);
+        dfc.translate(x, emojiY);
         dfc.scale(scale, scale);
         dfc.font = '128px serif';
         dfc.textBaseline = 'middle';
-        dfc.textAlign = 'center';
         dfc.shadowColor = 'rgba(0,0,0,0.5)';
         dfc.shadowBlur = 16;
         dfc.shadowOffsetY = 6;
-        dfc.fillText(p.emoji, 0, 0);
+        dfc.fillText(emoji, 0, 0);
         dfc.restore();
 
-        // label
+        // label above emoji
         if (lbl) {
           const cls = lbl.split(' ')[0].toLowerCase();
           dfc.save();
           dfc.font = 'bold 36px monospace';
-          dfc.textBaseline = 'top';
+          dfc.textBaseline = 'bottom';
           dfc.fillStyle = LABEL_COLORS[cls] || '#fff';
           dfc.shadowColor = 'rgba(0,0,0,0.6)';
           dfc.shadowBlur = 6;
-          dfc.fillText(lbl, x, 2);
+          dfc.fillText(lbl, x, emojiY - EMOJI_HALF - 8);
           dfc.restore();
         }
       });
@@ -246,11 +277,7 @@
           clearTimeout(labelTimers[msg.emoji]);
           labelTimers[msg.emoji] = setTimeout(() => { delete shownLabels[msg.emoji]; renderBoard(); }, 1200);
           if (msg.label.startsWith('PERFECT')) {
-            const idx = playerOrder.indexOf(msg.emoji);
-            if (idx !== -1) {
-              const step = dfCanvas.width / playerOrder.length;
-              triggerPerfect(msg.emoji, step * idx + step / 2, dfCanvas.height / 2);
-            }
+            triggerPerfect(msg.emoji);
           }
         }
         renderBoard();
@@ -267,6 +294,7 @@
     const scoreEl = document.getElementById('score-val');
 
     let matchedTaps = [];
+    let maxPossibleScore = 1;
     let lastTapIdx = -1;
     let ratingTimer = null;
     let perfectStreak = 0;
@@ -324,7 +352,10 @@
 
     fetch('beatsmatched.json')
       .then(r => r.json())
-      .then(data => { matchedTaps = data; });
+      .then(data => {
+        matchedTaps = data;
+        maxPossibleScore = data.reduce((sum, _, i) => sum + 100 + (i + 1) * 20, 0);
+      });
 
     let allBeats = [];
     fetch('beats.json')
