@@ -24,6 +24,7 @@
       user-select: none;
       max-width: 1024px;
       margin: 0 auto;
+      border: 1px solid rgba(255,255,255,0.2);
     }
 
     /* ── lobby ── */
@@ -114,12 +115,6 @@
 
     .sb-row .sb-score { color: rgba(255,255,255,0.5); font-size: 26px; }
     .sb-row.me .sb-score { color: #fff; }
-    .sb-label { font-size: 14px; letter-spacing: 1px; min-width: 90px; }
-    .sb-label.perfect { color: #c084fc; }
-    .sb-label.great   { color: #77ddff; }
-    .sb-label.good    { color: #aad888; }
-    .sb-label.bad     { color: #ff7766; }
-    .sb-label.miss    { color: #ff4444; }
 
     /* ── game ── */
     #top {
@@ -147,6 +142,13 @@
       font-size: 13px;
       color: rgba(255,255,255,0.35);
       letter-spacing: 1px;
+    }
+
+    #dancefloor {
+      width: 100vw;
+      max-width: 1024px;
+      height: 110px;
+      display: block;
     }
 
     #middle {
@@ -245,6 +247,8 @@
     <div id="duration"></div>
   </div>
 
+  <canvas id="dancefloor"></canvas>
+
   <div id="middle">
     <div id="rating"></div>
     <canvas id="lane"></canvas>
@@ -267,20 +271,69 @@
     let isReady = false;
 
     let lastBoard = [];
+    let playerOrder = []; // stable join order for dancefloor positions
     const shownLabels = {};
     const labelTimers = {};
     const sb = document.getElementById('scoreboard');
+    const dfCanvas = document.getElementById('dancefloor');
+    const dfc = dfCanvas.getContext('2d');
+
+    function resizeDancefloor() {
+      dfCanvas.width = Math.min(window.innerWidth, 1024);
+      dfCanvas.height = 110;
+    }
+    resizeDancefloor();
+    window.addEventListener('resize', () => { resizeDancefloor(); drawDancefloor(); });
+
+    const LABEL_COLORS = { perfect: '#c084fc', great: '#77ddff', good: '#aad888', bad: '#ff7766', miss: '#ff4444' };
+
+    function drawDancefloor() {
+      dfc.clearRect(0, 0, dfCanvas.width, dfCanvas.height);
+      if (!playerOrder.length) return;
+      const step = dfCanvas.width / playerOrder.length;
+      dfc.textAlign = 'center';
+      const boardMap = Object.fromEntries(lastBoard.map(p => [p.emoji, p]));
+
+      playerOrder.forEach((emoji, i) => {
+        const p = boardMap[emoji] || { emoji };
+        const x = step * i + step / 2;
+        const lbl = shownLabels[p.emoji] || '';
+
+        // emoji
+        dfc.save();
+        dfc.font = '44px serif';
+        dfc.textBaseline = 'middle';
+        dfc.shadowColor = 'rgba(0,0,0,0.5)';
+        dfc.shadowBlur = 16;
+        dfc.shadowOffsetY = 6;
+        dfc.fillText(p.emoji, x, dfCanvas.height / 2);
+        dfc.restore();
+
+        // label
+        if (lbl) {
+          const cls = lbl.split(' ')[0].toLowerCase();
+          dfc.save();
+          dfc.font = 'bold 18px monospace';
+          dfc.textBaseline = 'top';
+          dfc.fillStyle = LABEL_COLORS[cls] || '#fff';
+          dfc.shadowColor = 'rgba(0,0,0,0.6)';
+          dfc.shadowBlur = 6;
+          dfc.fillText(lbl, x, 2);
+          dfc.restore();
+        }
+      });
+    }
+
     function renderBoard() {
       sb.innerHTML = lastBoard.map(p => {
-        const lbl = shownLabels[p.emoji] || '';
-        const cls = lbl ? lbl.split(' ')[0].toLowerCase() : '';
         return `
           <div class="sb-row ${p.emoji === myEmoji ? 'me' : ''}">
             <span>${p.emoji}</span>
             <span class="sb-score">${p.score}</span>
-            <span class="sb-label ${cls}">${lbl}</span>
           </div>`;
       }).join('');
+
+      drawDancefloor();
     }
 
     ws.onmessage = ({ data }) => {
@@ -296,6 +349,7 @@
       }
 
       if (msg.type === 'players') {
+        playerOrder = msg.players.map(p => p.emoji);
         const list = document.getElementById('player-list');
         list.innerHTML = msg.players.map(p => `
           <div class="player-row">
