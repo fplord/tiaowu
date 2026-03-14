@@ -47,7 +47,7 @@
     </div>
   </div>
 
-  <audio id="audio" src="KeyKey - 当想你成为习惯(DJR7版)「当想你成为习惯一个人说着晚安」(Lyrics) ｜ Best TikTok - Douyin Songs [sFf1y-WnBkw].webm"></audio>
+  <audio id="audio" src="songs/xiguan_manyao/xiguan_manyao.webm"></audio>
 
   <script>
     // ── websocket ──
@@ -371,7 +371,7 @@
       speechSynthesis.speak(u);
     }
 
-    fetch('beatsmatched.json')
+    fetch('songs/xiguan_manyao/beatmap.json')
       .then(r => r.json())
       .then(data => {
         matchedTaps = data;
@@ -379,7 +379,7 @@
       });
 
     let allBeats = [];
-    fetch('beats.json')
+    fetch('songs/xiguan_manyao/beats.json')
       .then(r => r.json())
       .then(data => { allBeats = data.beat_times; });
 

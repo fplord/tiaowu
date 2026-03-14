@@ -15,7 +15,7 @@
     <button id="btn">▶</button>
     <button id="export">export</button>
   </div>
-  <audio id="audio" src="../trouble_maker_clipped.webm"></audio>
+  <audio id="audio" src="../songs/trouble_maker/trouble_maker_clipped.webm"></audio>
 
   <script>
     const audio = document.getElementById('audio');
@@ -32,11 +32,11 @@
     let candidateBeats = [];    // raw beat times for drawing
     let candidateData = [];     // full {beat, sequence} objects
 
-    fetch('../beats_trouble_maker.json')
+    fetch('../songs/trouble_maker/beats_trouble_maker.json')
       .then(r => r.json())
       .then(data => { allBeats = data.beat_times; });
 
-    fetch('candidate_beats.json')
+    fetch('../songs/trouble_maker/candidate_beats.json')
       .then(r => r.json())
       .then(data => { candidateData = data; candidateBeats = data.map(b => b.beat); });
 
