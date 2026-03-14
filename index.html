@@ -39,6 +39,21 @@
 
     #lobby.hidden { display: none; }
 
+    #start-overlay {
+      position: fixed;
+      inset: 0;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      letter-spacing: 3px;
+      z-index: 9;
+      cursor: pointer;
+    }
+
+    #start-overlay.hidden { display: none; }
+
     #my-emoji { font-size: 72px; }
 
     #player-list {
@@ -214,6 +229,9 @@
 </head>
 <body>
 
+  <!-- tap to start overlay -->
+  <div id="start-overlay" class="hidden">TAP TO START</div>
+
   <!-- lobby -->
   <div id="lobby">
     <div id="my-emoji"></div>
@@ -247,7 +265,7 @@
 
   <script>
     // ── websocket ──
-    const ws = new WebSocket(`ws://${location.host}`);
+    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
     const emit = (type, payload = {}) => ws.send(JSON.stringify({ type, ...payload }));
     let myEmoji = null;
     let isReady = false;
@@ -281,10 +299,7 @@
 
       if (msg.type === 'start') {
         document.getElementById('lobby').classList.add('hidden');
-        ctx.resume();
-        audio.play();
-        btn.textContent = '⏸';
-        tick();
+        document.getElementById('start-overlay').classList.remove('hidden');
       }
 
       if (msg.type === 'scoreboard') {
@@ -427,6 +442,15 @@
         audio.pause();
         btn.textContent = '▶';
       }
+    });
+
+    const startOverlay = document.getElementById('start-overlay');
+    startOverlay.addEventListener('click', () => {
+      startOverlay.classList.add('hidden');
+      ctx.resume();
+      audio.play();
+      btn.textContent = '⏸';
+      tick();
     });
 
     function tick() {
