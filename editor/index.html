@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beat Editor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="duration"></div>
+  <canvas id="lane"></canvas>
+  <canvas id="lane2"></canvas>
+  <div id="sequence"></div>
+  <div style="display:flex;gap:16px;align-items:center">
+    <button id="btn">▶</button>
+    <button id="export">export</button>
+  </div>
+  <audio id="audio" src="../trouble_maker_clipped.webm"></audio>
+
+  <script>
+    const audio = document.getElementById('audio');
+    const btn = document.getElementById('btn');
+    const laneEl = document.getElementById('lane');
+    const lc = laneEl.getContext('2d');
+    const lane2El = document.getElementById('lane2');
+    const lc2 = lane2El.getContext('2d');
+
+    const LOOKAHEAD = 5;
+    const HIT_X = 72;
+
+    let allBeats = [];
+    let candidateBeats = [];    // raw beat times for drawing
+    let candidateData = [];     // full {beat, sequence} objects
+
+    fetch('../beats_trouble_maker.json')
+      .then(r => r.json())
+      .then(data => { allBeats = data.beat_times; });
+
+    fetch('candidate_beats.json')
+      .then(r => r.json())
+      .then(data => { candidateData = data; candidateBeats = data.map(b => b.beat); });
+
+    function resizeLane() {
+      const w = Math.min(window.innerWidth, 1024);
+      laneEl.width = w;   laneEl.height = 90;
+      lane2El.width = w;  lane2El.height = 90;
+    }
+    resizeLane();
+    window.addEventListener('resize', resizeLane);
+
+    function drawTrack(ctx, beats, color, shadowColor, t) {
+      const W = ctx.canvas.width, H = ctx.canvas.height;
+      const pps = (W - HIT_X) / LOOKAHEAD;
+      ctx.clearRect(0, 0, W, H);
+
+      // hit line
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(HIT_X, 8);
+      ctx.lineTo(HIT_X, H - 8);
+      ctx.stroke();
+      ctx.restore();
+
+      beats.forEach(beat => {
+        const dt = beat - t;
+        if (dt > LOOKAHEAD || dt < -0.4) return;
+        const x = HIT_X + dt * pps;
+        ctx.save();
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = shadowColor;
+        ctx.fillStyle = color;
+        ctx.fillRect(x - 3, 12, 6, H - 24);
+        ctx.restore();
+      });
+    }
+
+    function drawLane(t) {
+      drawTrack(lc,  allBeats,       '#fff',    'rgba(255,255,255,0.8)', t);
+      drawTrack(lc2, candidateBeats, '#facc15', 'rgba(250,204,21,0.8)',  t);
+    }
+
+    const ARROWS = { U: '↑', D: '↓', L: '←', R: '→' };
+    const seqEl = document.getElementById('sequence');
+
+    function renderSequence(t) {
+      const next = candidateData.find(m => m.beat > t);
+      if (!next || !next.sequence) { seqEl.innerHTML = ''; return; }
+      seqEl.innerHTML = next.sequence.split('').map(c => `<span>${ARROWS[c] || c}</span>`).join('');
+    }
+
+    const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+    function tick() {
+      if (audio.paused) return;
+      const t = audio.currentTime;
+      const dur = audio.duration;
+      document.getElementById('duration').textContent = isNaN(dur) ? '' : `${fmt(t)} / ${fmt(dur)}`;
+      drawLane(t);
+      renderSequence(t);
+      requestAnimationFrame(tick);
+    }
+
+    const taps = [];
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!audio.paused) taps.push(audio.currentTime);
+      }
+    });
+
+    document.getElementById('export').addEventListener('click', () => {
+      navigator.clipboard.writeText(JSON.stringify(taps, null, 2));
+    });
+
+    btn.addEventListener('click', () => {
+      if (audio.paused) {
+        audio.play();
+        btn.textContent = '⏸';
+        tick();
+      } else {
+        audio.pause();
+        btn.textContent = '▶';
+      }
+    });
+  </script>
+</body>
+</html>

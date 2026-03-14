@@ -1,0 +1,77 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #1a4fa0;
+  color: #fff;
+  font-family: monospace;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  max-width: 1024px;
+  margin: 0 auto;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+#duration {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 1px;
+}
+
+#lane, #lane2 {
+  width: 100vw;
+  max-width: 1024px;
+  height: 90px;
+  display: block;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(4px);
+}
+
+#btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.6);
+  background: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+#sequence {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 72px;
+  min-width: 200px;
+}
+
+#sequence span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.7);
+  font-size: 36px;
+  color: #fff;
+}
+
+#export {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.7);
+  font-family: monospace;
+  font-size: 12px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+audio { display: none; }
