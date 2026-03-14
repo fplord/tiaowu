@@ -6,225 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Beat Game</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-    body {
-      background: #1a4fa0;
-      color: #fff;
-      font-family: monospace;
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      padding: 48px 0 40px;
-      overflow: hidden;
-      touch-action: none;
-      user-select: none;
-      max-width: 1024px;
-      margin: 0 auto;
-      border: 1px solid rgba(255,255,255,0.2);
-    }
-
-    /* ── lobby ── */
-    #lobby {
-      position: fixed;
-      inset: 0;
-      background: #1a4fa0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 32px;
-      z-index: 10;
-    }
-
-    #lobby.hidden { display: none; }
-
-    #my-emoji { font-size: 72px; }
-
-    #player-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-width: 180px;
-    }
-
-    .player-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 22px;
-    }
-
-    .player-row .status {
-      font-size: 12px;
-      color: rgba(255,255,255,0.4);
-      letter-spacing: 1px;
-    }
-
-    .player-row .status.ready { color: #4ade80; }
-
-    #ready-btn {
-      width: 160px;
-      height: 60px;
-      border-radius: 8px;
-      border: 2px solid #fff;
-      background: none;
-      color: #fff;
-      font-family: monospace;
-      font-size: 16px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-
-    #ready-btn.is-ready {
-      background: #4ade80;
-      border-color: #4ade80;
-      color: #111;
-    }
-
-    #lobby-countdown {
-      font-size: 72px;
-      font-weight: bold;
-      height: 80px;
-      color: #fff;
-    }
-
-    /* ── scoreboard ── */
-    #scoreboard {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      z-index: 5;
-    }
-
-    .sb-row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      font-size: 32px;
-    }
-
-    .sb-row .sb-score { color: rgba(255,255,255,0.5); font-size: 26px; }
-    .sb-row.me .sb-score { color: #fff; }
-
-    /* ── game ── */
-    #top {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-    }
-
-    #score {
-      font-size: 14px;
-      color: rgba(255,255,255,0.5);
-      letter-spacing: 1px;
-    }
-
-    #score b { color: #fff; font-size: 32px; }
-
-    #countdown {
-      font-size: 28px;
-      color: rgba(255,255,255,0.4);
-      height: 36px;
-    }
-
-    #duration {
-      font-size: 13px;
-      color: rgba(255,255,255,0.35);
-      letter-spacing: 1px;
-    }
-
-    #dancefloor {
-      width: 100vw;
-      max-width: 1024px;
-      height: 110px;
-      display: block;
-    }
-
-    #middle {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-
-    #rating {
-      font-size: 32px;
-      font-weight: bold;
-      height: 44px;
-      letter-spacing: 2px;
-      opacity: 0;
-      transition: opacity 0.1s;
-    }
-
-    #rating.show { opacity: 1; }
-    #rating.perfect { color: #c084fc; font-size: 42px; }
-    #rating.great   { color: #7df; }
-    #rating.good    { color: #ad8; }
-    #rating.bad     { color: #f76; }
-    #rating.miss    { color: #f44; }
-
-    #lane {
-      width: 100vw;
-      max-width: 1024px;
-      height: 90px;
-      display: block;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.1);
-      backdrop-filter: blur(4px);
-    }
-
-    #bottom {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 24px;
-      width: 100%;
-    }
-
-
-    #controls {
-      display: flex;
-      gap: 20px;
-      align-items: center;
-    }
-
-    #btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      border: 2px solid #111;
-      background: none;
-      color: #111;
-      font-size: 22px;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-
-    #export {
-      background: none;
-      border: 1px solid #333;
-      color: #555;
-      font-family: monospace;
-      font-size: 12px;
-      padding: 8px 16px;
-      cursor: pointer;
-      border-radius: 4px;
-      touch-action: manipulation;
-    }
-
-    audio { display: none; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -252,6 +34,7 @@
   <div id="middle">
     <div id="rating"></div>
     <canvas id="lane"></canvas>
+    <div id="sequence"></div>
   </div>
 
   <div id="bottom">
@@ -279,18 +62,49 @@
     const dfc = dfCanvas.getContext('2d');
 
     function resizeDancefloor() {
-      dfCanvas.width = Math.min(window.innerWidth, 1024);
-      dfCanvas.height = 110;
+      const size = Math.min(window.innerWidth, 1024);
+      dfCanvas.width = size;
+      dfCanvas.height = size;
     }
     resizeDancefloor();
     window.addEventListener('resize', () => { resizeDancefloor(); drawDancefloor(); });
 
     const LABEL_COLORS = { perfect: '#c084fc', great: '#77ddff', good: '#aad888', bad: '#ff7766', miss: '#ff4444' };
 
+    const emojiAnims = {}; // emoji -> { startTime, particles }
+    let animLoopRunning = false;
+
+    function triggerPerfect(emoji, x, cy) {
+      const N = 12;
+      emojiAnims[emoji] = {
+        startTime: performance.now(),
+        particles: Array.from({ length: N }, (_, i) => ({
+          angle: (i / N) * Math.PI * 2 + Math.random() * 0.3,
+          speed: 55 + Math.random() * 55,
+          r: 3 + Math.random() * 2,
+          color: ['#c084fc', '#e0b0ff', '#ffffff', '#f0c0ff'][Math.floor(Math.random() * 4)],
+        })),
+        x, cy,
+      };
+      if (!animLoopRunning) {
+        animLoopRunning = true;
+        requestAnimationFrame(animLoop);
+      }
+    }
+
+    function animLoop() {
+      const now = performance.now();
+      const active = Object.keys(emojiAnims);
+      if (!active.length) { animLoopRunning = false; return; }
+      drawDancefloor();
+      requestAnimationFrame(animLoop);
+    }
+
     function drawDancefloor() {
       dfc.clearRect(0, 0, dfCanvas.width, dfCanvas.height);
       if (!playerOrder.length) return;
       const step = dfCanvas.width / playerOrder.length;
+      const cy = dfCanvas.height / 2;
       dfc.textAlign = 'center';
       const boardMap = Object.fromEntries(lastBoard.map(p => [p.emoji, p]));
 
@@ -298,22 +112,74 @@
         const p = boardMap[emoji] || { emoji };
         const x = step * i + step / 2;
         const lbl = shownLabels[p.emoji] || '';
+        const anim = emojiAnims[emoji];
 
-        // emoji
+        // glow ring + particles
+        if (anim) {
+          const t = Math.min((performance.now() - anim.startTime) / 700, 1);
+          if (t >= 1) {
+            delete emojiAnims[emoji];
+          } else {
+            // expanding glow ring
+            dfc.save();
+            const ringR = 34 + t * 44;
+            const ringAlpha = (1 - t) * 0.9;
+            dfc.beginPath();
+            dfc.arc(x, cy, ringR, 0, Math.PI * 2);
+            dfc.strokeStyle = `rgba(192,132,252,${ringAlpha})`;
+            dfc.lineWidth = 4 * (1 - t) + 1;
+            dfc.shadowBlur = 20;
+            dfc.shadowColor = '#c084fc';
+            dfc.stroke();
+            dfc.restore();
+
+            // particles
+            anim.particles.forEach(p => {
+              const dist = t * p.speed;
+              const px = x + Math.cos(p.angle) * dist;
+              const py = cy + Math.sin(p.angle) * dist;
+              const alpha = 1 - t;
+              dfc.save();
+              dfc.globalAlpha = alpha;
+              dfc.beginPath();
+              dfc.arc(px, py, p.r * (1 - t * 0.4), 0, Math.PI * 2);
+              dfc.fillStyle = p.color;
+              dfc.shadowBlur = 8;
+              dfc.shadowColor = p.color;
+              dfc.fill();
+              dfc.restore();
+            });
+          }
+        }
+
+        // emoji (with beat pulse)
+        const beatT = audio.paused ? 0 : audio.currentTime;
+        let pulse = 0;
+        if (!audio.paused && allBeats.length) {
+          const lastBeat = allBeats.filter(b => b <= beatT).at(-1);
+          if (lastBeat !== undefined) {
+            const elapsed = beatT - lastBeat;
+            if (elapsed < 0.25) pulse = (1 - elapsed / 0.20) * 0.12;
+          }
+        }
+        const scale = 1 + pulse;
         dfc.save();
-        dfc.font = '44px serif';
+        dfc.translate(x, cy);
+        dfc.scale(scale, scale);
+        dfc.font = '128px serif';
         dfc.textBaseline = 'middle';
+        dfc.textAlign = 'center';
         dfc.shadowColor = 'rgba(0,0,0,0.5)';
         dfc.shadowBlur = 16;
         dfc.shadowOffsetY = 6;
-        dfc.fillText(p.emoji, x, dfCanvas.height / 2);
+        dfc.fillText(p.emoji, 0, 0);
         dfc.restore();
 
         // label
         if (lbl) {
           const cls = lbl.split(' ')[0].toLowerCase();
           dfc.save();
-          dfc.font = 'bold 18px monospace';
+          dfc.font = 'bold 36px monospace';
           dfc.textBaseline = 'top';
           dfc.fillStyle = LABEL_COLORS[cls] || '#fff';
           dfc.shadowColor = 'rgba(0,0,0,0.6)';
@@ -378,6 +244,13 @@
           shownLabels[msg.emoji] = msg.label;
           clearTimeout(labelTimers[msg.emoji]);
           labelTimers[msg.emoji] = setTimeout(() => { delete shownLabels[msg.emoji]; renderBoard(); }, 1200);
+          if (msg.label.startsWith('PERFECT')) {
+            const idx = playerOrder.indexOf(msg.emoji);
+            if (idx !== -1) {
+              const step = dfCanvas.width / playerOrder.length;
+              triggerPerfect(msg.emoji, step * idx + step / 2, dfCanvas.height / 2);
+            }
+          }
         }
         renderBoard();
       }
@@ -452,6 +325,45 @@
       .then(r => r.json())
       .then(data => { matchedTaps = data; });
 
+    let allBeats = [];
+    fetch('beats.json')
+      .then(r => r.json())
+      .then(data => { allBeats = data.beat_times; });
+
+    let inputBuffer = '';
+    const KEY_MAP = { ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R' };
+    const seqEl = document.getElementById('sequence');
+
+    function renderSequence() {
+      const t = audio.paused ? 0 : audio.currentTime;
+      const nextTap = matchedTaps.find((m, i) => m.beat > t && !scoredTaps.has(i));
+      if (!nextTap) { seqEl.innerHTML = ''; return; }
+      seqEl.innerHTML = nextTap.sequence.split('').map((c, i) => {
+        const matched = i < inputBuffer.length;
+        return `<span style="${matched ? 'border-color:#4ade80;color:#4ade80' : ''}">${ARROWS[c]}</span>`;
+      }).join('');
+    }
+
+    document.addEventListener('keydown', e => {
+      const dir = KEY_MAP[e.key];
+      if (dir) {
+        e.preventDefault();
+        if (audio.paused || !matchedTaps.length) return;
+        const t = audio.currentTime;
+        const nextTap = matchedTaps.find((m, i) => m.beat > t && !scoredTaps.has(i));
+        if (!nextTap) return;
+        if (inputBuffer === nextTap.sequence) return;
+        const newBuffer = inputBuffer + dir;
+        if (nextTap.sequence.startsWith(newBuffer)) {
+          inputBuffer = newBuffer;
+        } else {
+          inputBuffer = '';
+        }
+        renderSequence();
+        return;
+      }
+    });
+
     function doTap() {
       navigator.vibrate?.(30);
       playTap();
@@ -460,13 +372,18 @@
       const t = audio.currentTime;
       taps.push(t);
       const closestIdx = matchedTaps.reduce((bi, m, i) => Math.abs(m.beat - t) < Math.abs(matchedTaps[bi].beat - t) ? i : bi, 0);
-      const closest = matchedTaps[closestIdx].beat;
-      const signedDiff = (t - closest) * 1000;
+      const target = matchedTaps[closestIdx];
+
+      // require full buffer match before scoring
+      if (inputBuffer !== target.sequence) return;
+
+      const signedDiff = (t - target.beat) * 1000;
       const diff = Math.abs(signedDiff);
 
       if (diff >= 500) return;
       if (scoredTaps.has(closestIdx)) return;
       scoredTaps.add(closestIdx);
+      inputBuffer = '';
 
       let label, cls;
       if (diff < 80) {
@@ -520,6 +437,7 @@
     const lc = laneEl.getContext('2d');
     const LOOKAHEAD = 15;
     const HIT_COLORS = { perfect: '#c084fc', great: '#22aadd', good: '#66bb44', bad: '#ff7766', miss: '#ccc' };
+    const ARROWS = { U: '↑', D: '↓', L: '←', R: '→' };
     let hitFlash = null;
 
     function resizeLane() {
@@ -564,8 +482,9 @@
       if (audio.paused) return;
       const t = audio.currentTime;
 
-      const nextTap = matchedTaps.find(m => m.beat > t);
+      const nextTap = matchedTaps.find((m, i) => m.beat > t && !scoredTaps.has(i));
       countdown.textContent = nextTap ? `${(nextTap.beat - t).toFixed(1)}s` : '';
+      renderSequence();
 
       const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
       const dur = audio.duration;
@@ -574,6 +493,7 @@
       const missIdx = matchedTaps.findLastIndex(m => m.beat <= t - 0.2);
       if (missIdx >= 0 && !scoredTaps.has(missIdx)) {
         scoredTaps.add(missIdx);
+        inputBuffer = '';
         perfectStreak = 0;
         rating.textContent = 'MISS';
         rating.className = 'show miss';
@@ -584,6 +504,7 @@
       }
 
       drawLane(t);
+      drawDancefloor();
       requestAnimationFrame(tick);
     }
   </script>

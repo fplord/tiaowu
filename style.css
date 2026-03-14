@@ -1,0 +1,235 @@
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: #1a4fa0;
+  color: #fff;
+  font-family: monospace;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 48px 0 40px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  max-width: 1024px;
+  margin: 0 auto;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* ── lobby ── */
+#lobby {
+  position: fixed;
+  inset: 0;
+  background: #1a4fa0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  z-index: 10;
+}
+
+#lobby.hidden { display: none; }
+
+#my-emoji { font-size: 72px; }
+
+#player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 180px;
+}
+
+.player-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 22px;
+}
+
+.player-row .status {
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 1px;
+}
+
+.player-row .status.ready { color: #4ade80; }
+
+#ready-btn {
+  width: 160px;
+  height: 60px;
+  border-radius: 8px;
+  border: 2px solid #fff;
+  background: none;
+  color: #fff;
+  font-family: monospace;
+  font-size: 16px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#ready-btn.is-ready {
+  background: #4ade80;
+  border-color: #4ade80;
+  color: #111;
+}
+
+#lobby-countdown {
+  font-size: 72px;
+  font-weight: bold;
+  height: 80px;
+  color: #fff;
+}
+
+/* ── scoreboard ── */
+#scoreboard {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+}
+
+.sb-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 32px;
+}
+
+.sb-row .sb-score { color: rgba(255,255,255,0.5); font-size: 26px; }
+.sb-row.me .sb-score { color: #fff; }
+
+/* ── game ── */
+#top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+#score {
+  font-size: 14px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 1px;
+}
+
+#score b { color: #fff; font-size: 32px; }
+
+#countdown {
+  font-size: 28px;
+  color: rgba(255,255,255,0.4);
+  height: 36px;
+}
+
+#duration {
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 1px;
+}
+
+#dancefloor {
+  width: 100vw;
+  max-width: 1024px;
+  aspect-ratio: 1;
+  display: block;
+}
+
+#middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#rating {
+  font-size: 32px;
+  font-weight: bold;
+  height: 44px;
+  letter-spacing: 2px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+#rating.show { opacity: 1; }
+#rating.perfect { color: #c084fc; font-size: 42px; }
+#rating.great   { color: #7df; }
+#rating.good    { color: #ad8; }
+#rating.bad     { color: #f76; }
+#rating.miss    { color: #f44; }
+
+#lane {
+  width: 100vw;
+  max-width: 1024px;
+  height: 90px;
+  display: block;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(4px);
+}
+
+#bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+}
+
+#controls {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+#btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid #111;
+  background: none;
+  color: #111;
+  font-size: 22px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#export {
+  background: none;
+  border: 1px solid #333;
+  color: #555;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  touch-action: manipulation;
+}
+
+#sequence {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 72px;
+}
+
+#sequence span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.7);
+  font-size: 72px;
+  color: #fff;
+}
+
+audio { display: none; }

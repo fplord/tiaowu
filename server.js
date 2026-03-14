@@ -4,7 +4,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 
 // ── static file server ──
-const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.webm': 'audio/webm', '.wav': 'audio/wav' };
+const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.webm': 'audio/webm', '.wav': 'audio/wav' };
 
 const httpServer = http.createServer((req, res) => {
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : decodeURIComponent(req.url));
