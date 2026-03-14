@@ -213,6 +213,12 @@ body {
   touch-action: manipulation;
 }
 
+#level {
+  font-size: 36px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 2px;
+}
+
 #sequence {
   display: flex;
   gap: 8px;

@@ -34,6 +34,7 @@
   <div id="middle">
     <div id="rating"></div>
     <canvas id="lane"></canvas>
+    <div id="level"></div>
     <div id="sequence"></div>
   </div>
 
@@ -80,8 +81,8 @@
         startTime: performance.now(),
         particles: Array.from({ length: N }, (_, i) => ({
           angle: (i / N) * Math.PI * 2 + Math.random() * 0.3,
-          speed: 55 + Math.random() * 55,
-          r: 3 + Math.random() * 2,
+          speed: 110 + Math.random() * 110,
+          r: 6 + Math.random() * 4,
           color: ['#c084fc', '#e0b0ff', '#ffffff', '#f0c0ff'][Math.floor(Math.random() * 4)],
         })),
         x, cy,
@@ -122,7 +123,7 @@
           } else {
             // expanding glow ring
             dfc.save();
-            const ringR = 34 + t * 44;
+            const ringR = 68 + t * 88;
             const ringAlpha = (1 - t) * 0.9;
             dfc.beginPath();
             dfc.arc(x, cy, ringR, 0, Math.PI * 2);
@@ -337,7 +338,8 @@
     function renderSequence() {
       const t = audio.paused ? 0 : audio.currentTime;
       const nextTap = matchedTaps.find((m, i) => m.beat > t && !scoredTaps.has(i));
-      if (!nextTap) { seqEl.innerHTML = ''; return; }
+      if (!nextTap) { seqEl.innerHTML = ''; document.getElementById('level').textContent = ''; return; }
+      document.getElementById('level').textContent = `LEVEL ${nextTap.sequence.length}`;
       seqEl.innerHTML = nextTap.sequence.split('').map((c, i) => {
         const matched = i < inputBuffer.length;
         return `<span style="${matched ? 'border-color:#4ade80;color:#4ade80' : ''}">${ARROWS[c]}</span>`;
