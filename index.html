@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Beat Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: #111;
+      color: #fff;
+      font-family: monospace;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 48px 0 40px;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+
+    /* ── lobby ── */
+    #lobby {
+      position: fixed;
+      inset: 0;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      z-index: 10;
+    }
+
+    #lobby.hidden { display: none; }
+
+    #my-emoji { font-size: 72px; }
+
+    #player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 180px;
+    }
+
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+    }
+
+    .player-row .status {
+      font-size: 12px;
+      color: #555;
+      letter-spacing: 1px;
+    }
+
+    .player-row .status.ready { color: #4ade80; }
+
+    #ready-btn {
+      width: 160px;
+      height: 60px;
+      border-radius: 8px;
+      border: 2px solid #fff;
+      background: none;
+      color: #fff;
+      font-family: monospace;
+      font-size: 16px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    #ready-btn.is-ready {
+      background: #4ade80;
+      border-color: #4ade80;
+      color: #111;
+    }
+
+    #lobby-countdown {
+      font-size: 72px;
+      font-weight: bold;
+      height: 80px;
+      color: #fff;
+    }
+
+    /* ── scoreboard ── */
+    #scoreboard {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 5;
+    }
+
+    .sb-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 32px;
+    }
+
+    .sb-row .sb-score { color: #888; font-size: 26px; }
+    .sb-row.me .sb-score { color: #fff; }
+
+    /* ── game ── */
+    #top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #score {
+      font-size: 14px;
+      color: #888;
+      letter-spacing: 1px;
+    }
+
+    #score b { color: #fff; font-size: 32px; }
+
+    #countdown {
+      font-size: 28px;
+      color: #555;
+      height: 36px;
+    }
+
+    #middle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #rating {
+      font-size: 32px;
+      font-weight: bold;
+      height: 44px;
+      letter-spacing: 2px;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    #rating.show { opacity: 1; }
+    #rating.perfect { color: #c084fc; font-size: 42px; }
+    #rating.great   { color: #7df; }
+    #rating.good    { color: #ad8; }
+    #rating.bad     { color: #f76; }
+    #rating.miss    { color: #f44; }
+
+    #bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      width: 100%;
+    }
+
+    #tap {
+      width: 100vw;
+      height: 200px;
+      border-radius: 20px;
+      border: 2px solid #fff;
+      background: none;
+      color: #fff;
+      font-size: 16px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    #tap:active { background: #222; }
+
+    #controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    #btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      background: none;
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    #export {
+      background: none;
+      border: 1px solid #333;
+      color: #555;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      touch-action: manipulation;
+    }
+
+    audio { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- lobby -->
+  <div id="lobby">
+    <div id="my-emoji"></div>
+    <div id="player-list"></div>
+    <button id="ready-btn">READY</button>
+    <div id="lobby-countdown"></div>
+  </div>
+
+  <!-- scoreboard (visible during game) -->
+  <div id="scoreboard"></div>
+
+  <!-- game -->
+  <div id="top">
+    <div id="score">score <b id="score-val">0</b></div>
+    <div id="countdown"></div>
+  </div>
+
+  <div id="middle">
+    <div id="rating"></div>
+  </div>
+
+  <div id="bottom">
+    <button id="tap">TAP</button>
+    <div id="controls">
+      <button id="export">export</button>
+      <button id="btn">▶</button>
+    </div>
+  </div>
+
+  <audio id="audio" src="KeyKey - 当想你成为习惯(DJR7版)「当想你成为习惯一个人说着晚安」(Lyrics) ｜ Best TikTok - Douyin Songs [sFf1y-WnBkw].webm"></audio>
+
+  <script>
+    // ── websocket ──
+    const ws = new WebSocket(`ws://${location.host}`);
+    const emit = (type, payload = {}) => ws.send(JSON.stringify({ type, ...payload }));
+    let myEmoji = null;
+    let isReady = false;
+
+    ws.onmessage = ({ data }) => {
+      const msg = JSON.parse(data);
+
+      if (msg.type === 'assigned') {
+        myEmoji = msg.emoji;
+        document.getElementById('my-emoji').textContent = msg.emoji;
+        if (msg.gameState === 'playing') {
+          document.getElementById('ready-btn').textContent = 'waiting...';
+          document.getElementById('ready-btn').disabled = true;
+        }
+      }
+
+      if (msg.type === 'players') {
+        const list = document.getElementById('player-list');
+        list.innerHTML = msg.players.map(p => `
+          <div class="player-row">
+            <span>${p.emoji}</span>
+            <span class="status ${p.ready ? 'ready' : ''}">${p.ready ? 'ready' : 'waiting'}</span>
+          </div>
+        `).join('');
+      }
+
+      if (msg.type === 'countdown') {
+        countdown.textContent = msg.n;
+        document.getElementById('lobby-countdown').textContent = msg.n;
+      }
+
+      if (msg.type === 'start') {
+        document.getElementById('lobby').classList.add('hidden');
+        ctx.resume();
+        audio.play();
+        btn.textContent = '⏸';
+        tick();
+      }
+
+      if (msg.type === 'scoreboard') {
+        const sb = document.getElementById('scoreboard');
+        sb.innerHTML = msg.board.map(p => `
+          <div class="sb-row ${p.emoji === myEmoji ? 'me' : ''}">
+            <span>${p.emoji}</span>
+            <span class="sb-score">${p.score}</span>
+          </div>
+        `).join('');
+      }
+    };
+
+    const readyBtn = document.getElementById('ready-btn');
+
+    // ── audio / game ──
+    const audio = document.getElementById('audio');
+    const btn = document.getElementById('btn');
+    const countdown = document.getElementById('countdown');
+    const rating = document.getElementById('rating');
+    const tap = document.getElementById('tap');
+    const scoreEl = document.getElementById('score-val');
+
+    let matchedTaps = [];
+    let lastTapIdx = -1;
+    let ratingTimer = null;
+    let perfectStreak = 0;
+    let score = 0;
+    const scoredTaps = new Set();
+    const taps = [];
+
+    const POINTS = { perfect: 100, great: 60, good: 30, bad: 10, miss: 0 };
+
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    audio.volume = 0.3;
+
+    readyBtn.addEventListener('click', () => {
+      isReady = !isReady;
+      emit('ready', { value: isReady });
+      readyBtn.textContent = isReady ? 'CANCEL' : 'READY';
+      readyBtn.classList.toggle('is-ready', isReady);
+      // Unlock audio during user gesture so audio.play() works later from WS handler
+      ctx.resume();
+      audio.play().then(() => audio.pause()).catch(() => {});
+    });
+
+    function playTap() {
+      const now = ctx.currentTime;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(120, now);
+      o.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+      g.gain.setValueAtTime(4.0, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      o.start(now); o.stop(now + 0.3);
+
+      const bufLen = Math.floor(ctx.sampleRate * 0.04);
+      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+      const ng = ctx.createGain();
+      noise.connect(ng); ng.connect(ctx.destination);
+      ng.gain.setValueAtTime(3, now);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      noise.start(now);
+    }
+
+    function playPerfect() {
+      const u = new SpeechSynthesisUtterance('Perfect!');
+      u.pitch = 1.3;
+      u.rate = 1.1;
+      u.volume = 1;
+      speechSynthesis.speak(u);
+    }
+
+    fetch('beatsmatched.json')
+      .then(r => r.json())
+      .then(data => { matchedTaps = data; });
+
+    function doTap() {
+      navigator.vibrate?.(30);
+      playTap();
+      if (audio.paused || !matchedTaps.length) return;
+
+      const t = audio.currentTime;
+      taps.push(t);
+      const closestIdx = matchedTaps.reduce((bi, m, i) => Math.abs(m.beat - t) < Math.abs(matchedTaps[bi].beat - t) ? i : bi, 0);
+      const closest = matchedTaps[closestIdx].beat;
+      const signedDiff = (t - closest) * 1000;
+      const diff = Math.abs(signedDiff);
+
+      if (diff >= 500) return;
+      if (scoredTaps.has(closestIdx)) return;
+      scoredTaps.add(closestIdx);
+
+      let label, cls;
+      if (diff < 80) {
+        perfectStreak++;
+        playPerfect();
+        label = perfectStreak > 1 ? `PERFECT x${perfectStreak}` : 'PERFECT';
+        cls = 'perfect';
+        score += POINTS.perfect + (perfectStreak * 20);
+      } else {
+        perfectStreak = 0;
+        if      (diff < 100) { label = 'GREAT'; cls = 'great'; score += POINTS.great; }
+        else if (diff < 180) { label = 'GOOD';  cls = 'good';  score += POINTS.good;  }
+        else                 { label = 'BAD';   cls = 'bad';   }
+      }
+      scoreEl.textContent = score;
+      emit('score', { total: score });
+
+      const timing = signedDiff >= 0 ? 'late' : 'early';
+      rating.textContent = `${label}  ${Math.abs(signedDiff).toFixed(0)}ms ${timing}`;
+      rating.className = 'show ' + cls;
+      clearTimeout(ratingTimer);
+      ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
+    }
+
+    tap.addEventListener('touchstart', e => { e.preventDefault(); doTap(); }, { passive: false });
+    tap.addEventListener('click', doTap);
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space') { e.preventDefault(); doTap(); }
+    });
+
+    document.getElementById('export').addEventListener('click', () => {
+      navigator.clipboard.writeText(JSON.stringify(taps, null, 2));
+    });
+
+    btn.addEventListener('click', () => {
+      if (audio.paused) {
+        ctx.resume();
+        audio.play();
+        btn.textContent = '⏸';
+        tick();
+      } else {
+        audio.pause();
+        btn.textContent = '▶';
+      }
+    });
+
+    function tick() {
+      if (audio.paused) return;
+      const t = audio.currentTime;
+
+      const nextTap = matchedTaps.find(m => m.beat > t);
+      countdown.textContent = nextTap ? `${(nextTap.beat - t).toFixed(1)}s` : '';
+
+      const missIdx = matchedTaps.findLastIndex(m => m.beat <= t - 0.2);
+      if (missIdx >= 0 && !scoredTaps.has(missIdx)) {
+        scoredTaps.add(missIdx);
+        perfectStreak = 0;
+        rating.textContent = 'MISS';
+        rating.className = 'show miss';
+        clearTimeout(ratingTimer);
+        ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
+      }
+
+      requestAnimationFrame(tick);
+    }
+  </script>
+</body>
+</html>
