@@ -24,12 +24,6 @@
   <!-- scoreboard (visible during game) -->
   <div id="scoreboard"></div>
 
-  <!-- graffiti overlay -->
-  <div id="graffiti-layer"></div>
-
-  <!-- winner float overlay -->
-  <div id="winner-float-layer"></div>
-
   <!-- game -->
   <div id="top">
     <div id="score">score <b id="score-val">0</b></div>
@@ -297,7 +291,6 @@
           }
         }
         renderBoard();
-        updateWinnerFloat();
       }
     };
 
@@ -461,7 +454,6 @@
       }
       scoreEl.textContent = score;
       emit('score', { total: score, label });
-      spawnGraffiti(label, cls);
 
       const timing = signedDiff >= 0 ? 'late' : 'early';
       rating.textContent = `${label}  ${Math.abs(signedDiff).toFixed(0)}ms ${timing}`;
@@ -469,68 +461,6 @@
       hitFlash = { color: HIT_COLORS[cls], until: performance.now() + 400 };
       clearTimeout(ratingTimer);
       ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
-    }
-
-    // ── winner float ──
-    const winnerFloatLayer = document.getElementById('winner-float-layer');
-    let currentWinnerEmoji = null;
-    let winnerFloatInterval = null;
-
-    function spawnWinnerFloat() {
-      if (!currentWinnerEmoji || lastBoard.length < 2) return;
-      const el = document.createElement('div');
-      const isLeft = Math.random() < 0.5;
-      el.className = 'winner-float ' + (isLeft ? 'winner-float-left' : 'winner-float-right');
-      el.textContent = currentWinnerEmoji;
-      el.style.animationDuration = (2.0 + Math.random() * 1.4) + 's';
-      // spread across 5–45% of screen width from each side
-      const vwOffset = (5 + Math.random() * 40) + 'vw';
-      el.style.left = isLeft ? vwOffset : '';
-      el.style.right = !isLeft ? vwOffset : '';
-      winnerFloatLayer.appendChild(el);
-      el.addEventListener('animationend', () => el.remove());
-    }
-
-    function updateWinnerFloat() {
-      if (lastBoard.length < 2 || lastBoard[0].score <= 0) {
-        currentWinnerEmoji = null;
-        clearInterval(winnerFloatInterval);
-        winnerFloatInterval = null;
-        return;
-      }
-      const leader = lastBoard[0];
-      if (leader.emoji !== currentWinnerEmoji) {
-        currentWinnerEmoji = leader.emoji;
-        clearInterval(winnerFloatInterval);
-        spawnWinnerFloat();
-        spawnWinnerFloat();
-        winnerFloatInterval = setInterval(spawnWinnerFloat, 400);
-      }
-    }
-
-    const graffitiLayer = document.getElementById('graffiti-layer');
-    let graffitiSide = 0;
-    const GRAFFITI_COLORS = { perfect: '#c084fc', great: '#22ddff', good: '#88ee44', bad: '#ff7755' };
-
-    function spawnGraffitiEl(side, label, cls) {
-      const el = document.createElement('div');
-      el.className = 'graffiti-tag graffiti-' + side;
-      el.textContent = label;
-      el.style.color = GRAFFITI_COLORS[cls] || '#fff';
-      el.style.top = (10 + Math.random() * 72) + '%';
-      graffitiLayer.appendChild(el);
-      el.addEventListener('animationend', () => el.remove());
-    }
-
-    function spawnGraffiti(label, cls) {
-      // on perfect/great, blast from both sides simultaneously
-      if (cls === 'perfect' || cls === 'great') {
-        spawnGraffitiEl('left', label, cls);
-        spawnGraffitiEl('right', label, cls);
-      } else {
-        spawnGraffitiEl(graffitiSide % 2 === 0 ? 'left' : 'right', label, cls);
-      }
-      graffitiSide++;
     }
 
     function doPick(emoji) {
