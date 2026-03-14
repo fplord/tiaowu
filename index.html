@@ -13,7 +13,9 @@
   <!-- tap to start overlay -->
   <!-- lobby -->
   <div id="lobby">
-    <div id="my-emoji"></div>
+    <div id="game-title">ANIMAL DANCE BIT</div>
+    <div id="your-player">your player is <span id="my-emoji"></span></div>
+    <div id="emoji-picker"></div>
     <div id="player-list"></div>
     <button id="ready-btn">READY</button>
     <div id="lobby-countdown"></div>
@@ -237,9 +239,15 @@
     ws.onmessage = ({ data }) => {
       const msg = JSON.parse(data);
 
+      if (msg.type === 'pick_rejected') {
+        const btn = pickerEl.querySelector(`[data-emoji="${msg.emoji}"]`);
+        if (btn) { btn.classList.add('rejected'); setTimeout(() => btn.classList.remove('rejected'), 500); }
+      }
+
       if (msg.type === 'assigned') {
         myEmoji = msg.emoji;
         document.getElementById('my-emoji').textContent = msg.emoji;
+        renderPicker();
         if (msg.gameState === 'playing') {
           document.getElementById('ready-btn').textContent = 'waiting...';
           document.getElementById('ready-btn').disabled = true;
@@ -247,6 +255,8 @@
       }
 
       if (msg.type === 'players') {
+        takenEmojis = msg.players.map(p => p.emoji);
+        renderPicker();
         playerOrder = msg.players.map(p => p.emoji);
         const list = document.getElementById('player-list');
         list.innerHTML = msg.players.map(p => `
@@ -285,6 +295,17 @@
     };
 
     const readyBtn = document.getElementById('ready-btn');
+    const pickerEl = document.getElementById('emoji-picker');
+    const ALL_EMOJIS = ['🐸','🦊','🐼','🐨','🐯','🦁','🐮','🐷','🐙','🦄','🐲','🦋'];
+    let takenEmojis = [];
+
+    function renderPicker() {
+      pickerEl.innerHTML = ALL_EMOJIS.map(e => {
+        const isMine = e === myEmoji;
+        const isTaken = takenEmojis.includes(e) && !isMine;
+        return `<button class="pick-btn${isMine ? ' selected' : ''}${isTaken ? ' taken' : ''}" data-emoji="${e}" ${isTaken ? 'disabled' : ''}>${e}</button>`;
+      }).join('');
+    }
 
     // ── audio / game ──
     const audio = document.getElementById('audio');
@@ -441,6 +462,29 @@
       clearTimeout(ratingTimer);
       ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
     }
+
+    function doPick(emoji) {
+      if (!emoji || emoji === myEmoji) return;
+      myEmoji = emoji;
+      document.getElementById('my-emoji').textContent = emoji;
+      renderPicker();
+      emit('pick_emoji', { emoji });
+    }
+
+    // picker: touchend fires even when document touchstart called preventDefault
+    pickerEl.addEventListener('touchend', e => {
+      const btn = e.target.closest('.pick-btn');
+      if (!btn || btn.disabled) return;
+      e.stopPropagation();
+      e.preventDefault();
+      doPick(btn.dataset.emoji);
+    });
+    pickerEl.addEventListener('click', e => {
+      const btn = e.target.closest('.pick-btn');
+      if (!btn || btn.disabled) return;
+      e.stopPropagation();
+      doPick(btn.dataset.emoji);
+    });
 
     document.addEventListener('touchstart', e => { e.preventDefault(); doTap(); }, { passive: false });
     document.addEventListener('click', doTap);

@@ -1,7 +1,9 @@
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 body {
-  background: #1a4fa0;
+  background:
+    linear-gradient(rgba(0,0,30,0.5), rgba(0,0,30,0.5)),
+    url('bg.jpg') center/cover no-repeat fixed #1a4fa0;
   color: #fff;
   font-family: monospace;
   height: 100dvh;
@@ -18,11 +20,28 @@ body {
   border: 1px solid rgba(255,255,255,0.2);
 }
 
+/* ── game title ── */
+#game-title {
+  font-size: 28px;
+  font-weight: bold;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow:
+    0 0 4px #fff,
+    0 0 10px #7df,
+    0 0 20px #7df,
+    2px 2px 0 #0048c8;
+  font-family: monospace;
+}
+
 /* ── lobby ── */
 #lobby {
   position: fixed;
   inset: 0;
-  background: #1a4fa0;
+  background:
+    linear-gradient(rgba(0,0,30,0.5), rgba(0,0,30,0.5)),
+    url('bg.jpg') center/cover no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,7 +52,57 @@ body {
 
 #lobby.hidden { display: none; }
 
-#my-emoji { font-size: 72px; }
+#your-player {
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+#your-player #my-emoji {
+  font-size: 32px;
+  vertical-align: middle;
+}
+
+#emoji-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.pick-btn {
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  font-size: 28px;
+  width: 52px;
+  height: 52px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  touch-action: manipulation;
+}
+
+.pick-btn:hover:not([disabled]) {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.6);
+  transform: scale(1.1);
+}
+
+.pick-btn.selected {
+  border-color: #7df;
+  background: rgba(119,221,255,0.2);
+  box-shadow: 0 0 10px rgba(119,221,255,0.4);
+}
+
+.pick-btn.taken {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.pick-btn.rejected {
+  border-color: #f76;
+  background: rgba(255,100,80,0.25);
+}
 
 #player-list {
   display: flex;
@@ -51,8 +120,9 @@ body {
 
 .player-row .status {
   font-size: 12px;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.8);
   letter-spacing: 1px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 
 .player-row .status.ready { color: #4ade80; }
@@ -61,14 +131,23 @@ body {
   width: 160px;
   height: 60px;
   border-radius: 8px;
-  border: 2px solid #fff;
-  background: none;
+  border: none;
+  background: #2979ff;
   color: #fff;
   font-family: monospace;
   font-size: 16px;
+  font-weight: bold;
   letter-spacing: 2px;
   cursor: pointer;
   touch-action: manipulation;
+  text-shadow: 0 1px 3px rgba(0,0,30,0.4);
+  box-shadow: 0 4px 16px rgba(41,121,255,0.5);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+#ready-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(41,121,255,0.4);
 }
 
 #ready-btn.is-ready {
@@ -109,22 +188,25 @@ body {
 
 #score {
   font-size: 14px;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.9);
   letter-spacing: 1px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
 }
 
 #score b { color: #fff; font-size: 32px; }
 
 #countdown {
   font-size: 28px;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.9);
   height: 36px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
 }
 
 #duration {
   font-size: 13px;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.85);
   letter-spacing: 1px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 
 #dancefloor {
@@ -185,18 +267,18 @@ body {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: 2px solid #111;
-  background: none;
-  color: #111;
+  border: 2px solid rgba(255,255,255,0.7);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
   font-size: 22px;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 #export {
-  background: none;
-  border: 1px solid #333;
-  color: #555;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.7);
   font-family: monospace;
   font-size: 12px;
   padding: 8px 16px;
@@ -207,8 +289,9 @@ body {
 
 #level {
   font-size: 36px;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.9);
   letter-spacing: 2px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
 }
 
 #sequence {
