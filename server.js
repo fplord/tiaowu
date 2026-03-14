@@ -23,6 +23,7 @@ const wss = new WebSocketServer({ server: httpServer });
 const EMOJIS = ['🐸', '🦊', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐙', '🦄', '🐲', '🦋'];
 const players = new Map(); // ws → { emoji, ready, score }
 let gameState = 'lobby'; // 'lobby' | 'countdown' | 'playing'
+let selectedSong = 'xiguan_manyao';
 
 function send(ws, type, payload) {
   ws.send(JSON.stringify({ type, ...payload }));
@@ -60,7 +61,7 @@ wss.on('connection', (ws) => {
 
   players.set(ws, { emoji, ready: false, score: 0 });
 
-  send(ws, 'assigned', { emoji, gameState });
+  send(ws, 'assigned', { emoji, gameState, song: selectedSong });
   broadcastPlayers();
   broadcastScoreboard();
 
@@ -79,8 +80,17 @@ wss.on('connection', (ws) => {
         return;
       }
       player.emoji = wanted;
-      send(ws, 'assigned', { emoji: wanted, gameState });
+      send(ws, 'assigned', { emoji: wanted, gameState, song: selectedSong });
       broadcastPlayers();
+      return;
+    }
+
+    if (type === 'pick_song') {
+      if (gameState !== 'lobby') return;
+      const SONGS = ['xiguan_manyao', 'trouble_maker'];
+      if (!SONGS.includes(data.song)) return;
+      selectedSong = data.song;
+      broadcast('song', { song: selectedSong });
       return;
     }
 
@@ -100,7 +110,7 @@ wss.on('connection', (ws) => {
           } else {
             clearInterval(iv);
             gameState = 'playing';
-            broadcast('start', {});
+            broadcast('start', { song: selectedSong });
           }
         }, 1000);
       }

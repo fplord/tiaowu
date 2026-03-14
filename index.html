@@ -16,6 +16,7 @@
     <div id="game-title">ANIMAL DANCE BIT</div>
     <div id="your-player">your player is <span id="my-emoji"></span></div>
     <div id="emoji-picker"></div>
+    <div id="song-picker"></div>
     <div id="player-list"></div>
     <button id="ready-btn">READY</button>
     <div id="lobby-countdown"></div>
@@ -41,7 +42,7 @@
     </div>
   </div>
 
-  <audio id="audio" src="songs/xiguan_manyao/xiguan_manyao.webm"></audio>
+  <audio id="audio"></audio>
 
   <script>
     // ── websocket ──
@@ -290,10 +291,15 @@
         myEmoji = msg.emoji;
         document.getElementById('my-emoji').textContent = msg.emoji;
         renderPicker();
+        loadSong(msg.song);
         if (msg.gameState === 'playing') {
           document.getElementById('ready-btn').textContent = 'waiting...';
           document.getElementById('ready-btn').disabled = true;
         }
+      }
+
+      if (msg.type === 'song') {
+        loadSong(msg.song);
       }
 
       if (msg.type === 'players') {
@@ -350,8 +356,67 @@
       }).join('');
     }
 
+    // ── songs ──
+    const SONGS = [
+      { id: 'xiguan_manyao', name: '习惯慢摇', audio: 'xiguan_manyao.webm' },
+      { id: 'trouble_maker', name: 'Trouble Maker', audio: 'trouble_maker_clipped.webm' },
+    ];
+    let currentSong = SONGS[0].id;
+
+    function renderSongPicker() {
+      document.getElementById('song-picker').innerHTML = SONGS.map(s =>
+        `<button class="song-btn${s.id === currentSong ? ' selected' : ''}" data-song="${s.id}">${s.name}</button>`
+      ).join('');
+    }
+
+    renderSongPicker();
+
+    document.getElementById('song-picker').addEventListener('click', e => {
+      const btn = e.target.closest('.song-btn');
+      if (!btn) return;
+      emit('pick_song', { song: btn.dataset.song });
+    });
+
+    function setReadyBtnLoading(loading) {
+      readyBtn.disabled = loading;
+      if (loading) {
+        readyBtn.textContent = 'LOADING...';
+        readyBtn.classList.remove('is-ready');
+      } else {
+        readyBtn.textContent = isReady ? 'CANCEL' : 'READY';
+      }
+    }
+
+    function loadSong(id) {
+      const song = SONGS.find(s => s.id === id);
+      if (!song) return;
+      if (id === currentSong && audio.src) return; // already loaded
+      currentSong = id;
+      renderSongPicker();
+
+      // reset ready state when song changes
+      if (isReady) {
+        isReady = false;
+        emit('ready', { value: false });
+      }
+
+      setReadyBtnLoading(true);
+      audio.src = `songs/${id}/${song.audio}`;
+      audio.preload = 'auto';
+      audio.load();
+
+      fetch(`songs/${id}/beatmap.json`).then(r => r.json()).then(data => {
+        matchedTaps = data;
+        maxPossibleScore = data.reduce((sum, _, i) => sum + 100 + (i + 1) * 20, 0);
+      });
+      fetch(`songs/${id}/beats.json`).then(r => r.json()).then(data => {
+        allBeats = data.beat_times;
+      });
+    }
+
     // ── audio / game ──
     const audio = document.getElementById('audio');
+    audio.addEventListener('canplaythrough', () => setReadyBtnLoading(false));
     const btn = document.getElementById('btn');
     const countdown = document.getElementById('countdown');
     const scoreEl = document.getElementById('score-val');
@@ -412,17 +477,7 @@
       speechSynthesis.speak(u);
     }
 
-    fetch('songs/xiguan_manyao/beatmap.json')
-      .then(r => r.json())
-      .then(data => {
-        matchedTaps = data;
-        maxPossibleScore = data.reduce((sum, _, i) => sum + 100 + (i + 1) * 20, 0);
-      });
-
     let allBeats = [];
-    fetch('songs/xiguan_manyao/beats.json')
-      .then(r => r.json())
-      .then(data => { allBeats = data.beat_times; });
 
     let inputBuffer = '';
     const KEY_MAP = { ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R' };
