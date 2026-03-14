@@ -61,6 +61,7 @@ wss.on('connection', (ws) => {
 
   send(ws, 'assigned', { emoji, gameState });
   broadcastPlayers();
+  broadcastScoreboard();
 
   ws.on('message', (raw) => {
     const { type, ...data } = JSON.parse(raw);
@@ -91,7 +92,7 @@ wss.on('connection', (ws) => {
 
     if (type === 'score') {
       player.score = data.total;
-      broadcastScoreboard();
+      broadcast('scoreboard', { board: playerList().sort((a, b) => b.score - a.score), emoji: player.emoji, label: data.label || null });
     }
   });
 

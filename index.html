@@ -10,7 +10,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     body {
-      background: #111;
+      background: #1a4fa0;
       color: #fff;
       font-family: monospace;
       height: 100dvh;
@@ -22,13 +22,15 @@
       overflow: hidden;
       touch-action: none;
       user-select: none;
+      max-width: 1024px;
+      margin: 0 auto;
     }
 
     /* ── lobby ── */
     #lobby {
       position: fixed;
       inset: 0;
-      background: #111;
+      background: #1a4fa0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -38,21 +40,6 @@
     }
 
     #lobby.hidden { display: none; }
-
-    #start-overlay {
-      position: fixed;
-      inset: 0;
-      background: #111;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      letter-spacing: 3px;
-      z-index: 9;
-      cursor: pointer;
-    }
-
-    #start-overlay.hidden { display: none; }
 
     #my-emoji { font-size: 72px; }
 
@@ -72,7 +59,7 @@
 
     .player-row .status {
       font-size: 12px;
-      color: #555;
+      color: rgba(255,255,255,0.4);
       letter-spacing: 1px;
     }
 
@@ -108,10 +95,12 @@
     /* ── scoreboard ── */
     #scoreboard {
       position: fixed;
-      top: 12px;
-      right: 12px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       display: flex;
       flex-direction: column;
+      align-items: center;
       gap: 6px;
       z-index: 5;
     }
@@ -123,8 +112,14 @@
       font-size: 32px;
     }
 
-    .sb-row .sb-score { color: #888; font-size: 26px; }
+    .sb-row .sb-score { color: rgba(255,255,255,0.5); font-size: 26px; }
     .sb-row.me .sb-score { color: #fff; }
+    .sb-label { font-size: 14px; letter-spacing: 1px; min-width: 90px; }
+    .sb-label.perfect { color: #c084fc; }
+    .sb-label.great   { color: #77ddff; }
+    .sb-label.good    { color: #aad888; }
+    .sb-label.bad     { color: #ff7766; }
+    .sb-label.miss    { color: #ff4444; }
 
     /* ── game ── */
     #top {
@@ -136,7 +131,7 @@
 
     #score {
       font-size: 14px;
-      color: #888;
+      color: rgba(255,255,255,0.5);
       letter-spacing: 1px;
     }
 
@@ -144,8 +139,14 @@
 
     #countdown {
       font-size: 28px;
-      color: #555;
+      color: rgba(255,255,255,0.4);
       height: 36px;
+    }
+
+    #duration {
+      font-size: 13px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 1px;
     }
 
     #middle {
@@ -171,6 +172,16 @@
     #rating.bad     { color: #f76; }
     #rating.miss    { color: #f44; }
 
+    #lane {
+      width: 100vw;
+      max-width: 1024px;
+      height: 90px;
+      display: block;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(4px);
+    }
+
     #bottom {
       display: flex;
       flex-direction: column;
@@ -179,20 +190,6 @@
       width: 100%;
     }
 
-    #tap {
-      width: 100vw;
-      height: 200px;
-      border-radius: 20px;
-      border: 2px solid #fff;
-      background: none;
-      color: #fff;
-      font-size: 16px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-
-    #tap:active { background: #222; }
 
     #controls {
       display: flex;
@@ -204,9 +201,9 @@
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      border: 2px solid #fff;
+      border: 2px solid #111;
       background: none;
-      color: #fff;
+      color: #111;
       font-size: 22px;
       cursor: pointer;
       touch-action: manipulation;
@@ -230,8 +227,6 @@
 <body>
 
   <!-- tap to start overlay -->
-  <div id="start-overlay" class="hidden">TAP TO START</div>
-
   <!-- lobby -->
   <div id="lobby">
     <div id="my-emoji"></div>
@@ -247,15 +242,16 @@
   <div id="top">
     <div id="score">score <b id="score-val">0</b></div>
     <div id="countdown"></div>
+    <div id="duration"></div>
   </div>
 
   <div id="middle">
     <div id="rating"></div>
+    <canvas id="lane"></canvas>
   </div>
 
   <div id="bottom">
-    <button id="tap">TAP</button>
-    <div id="controls">
+    <div id="controls" style="display:none">
       <button id="export">export</button>
       <button id="btn">▶</button>
     </div>
@@ -269,6 +265,23 @@
     const emit = (type, payload = {}) => ws.send(JSON.stringify({ type, ...payload }));
     let myEmoji = null;
     let isReady = false;
+
+    let lastBoard = [];
+    const shownLabels = {};
+    const labelTimers = {};
+    const sb = document.getElementById('scoreboard');
+    function renderBoard() {
+      sb.innerHTML = lastBoard.map(p => {
+        const lbl = shownLabels[p.emoji] || '';
+        const cls = lbl ? lbl.split(' ')[0].toLowerCase() : '';
+        return `
+          <div class="sb-row ${p.emoji === myEmoji ? 'me' : ''}">
+            <span>${p.emoji}</span>
+            <span class="sb-score">${p.score}</span>
+            <span class="sb-label ${cls}">${lbl}</span>
+          </div>`;
+      }).join('');
+    }
 
     ws.onmessage = ({ data }) => {
       const msg = JSON.parse(data);
@@ -299,17 +312,20 @@
 
       if (msg.type === 'start') {
         document.getElementById('lobby').classList.add('hidden');
-        document.getElementById('start-overlay').classList.remove('hidden');
+        ctx.resume();
+        audio.play();
+        btn.textContent = '⏸';
+        tick();
       }
 
       if (msg.type === 'scoreboard') {
-        const sb = document.getElementById('scoreboard');
-        sb.innerHTML = msg.board.map(p => `
-          <div class="sb-row ${p.emoji === myEmoji ? 'me' : ''}">
-            <span>${p.emoji}</span>
-            <span class="sb-score">${p.score}</span>
-          </div>
-        `).join('');
+        lastBoard = msg.board;
+        if (msg.label && msg.emoji) {
+          shownLabels[msg.emoji] = msg.label;
+          clearTimeout(labelTimers[msg.emoji]);
+          labelTimers[msg.emoji] = setTimeout(() => { delete shownLabels[msg.emoji]; renderBoard(); }, 1200);
+        }
+        renderBoard();
       }
     };
 
@@ -320,7 +336,6 @@
     const btn = document.getElementById('btn');
     const countdown = document.getElementById('countdown');
     const rating = document.getElementById('rating');
-    const tap = document.getElementById('tap');
     const scoreEl = document.getElementById('score-val');
 
     let matchedTaps = [];
@@ -413,17 +428,18 @@
         else                 { label = 'BAD';   cls = 'bad';   }
       }
       scoreEl.textContent = score;
-      emit('score', { total: score });
+      emit('score', { total: score, label });
 
       const timing = signedDiff >= 0 ? 'late' : 'early';
       rating.textContent = `${label}  ${Math.abs(signedDiff).toFixed(0)}ms ${timing}`;
       rating.className = 'show ' + cls;
+      hitFlash = { color: HIT_COLORS[cls], until: performance.now() + 400 };
       clearTimeout(ratingTimer);
       ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
     }
 
-    tap.addEventListener('touchstart', e => { e.preventDefault(); doTap(); }, { passive: false });
-    tap.addEventListener('click', doTap);
+    document.addEventListener('touchstart', e => { e.preventDefault(); doTap(); }, { passive: false });
+    document.addEventListener('click', doTap);
     document.addEventListener('keydown', e => {
       if (e.code === 'Space') { e.preventDefault(); doTap(); }
     });
@@ -444,14 +460,51 @@
       }
     });
 
-    const startOverlay = document.getElementById('start-overlay');
-    startOverlay.addEventListener('click', () => {
-      startOverlay.classList.add('hidden');
-      ctx.resume();
-      audio.play();
-      btn.textContent = '⏸';
-      tick();
-    });
+
+    // ── lane visualisation ──
+    const laneEl = document.getElementById('lane');
+    const lc = laneEl.getContext('2d');
+    const LOOKAHEAD = 15;
+    const HIT_COLORS = { perfect: '#c084fc', great: '#22aadd', good: '#66bb44', bad: '#ff7766', miss: '#ccc' };
+    let hitFlash = null;
+
+    function resizeLane() {
+      laneEl.width = Math.min(window.innerWidth, 1024);
+      laneEl.height = 90;
+    }
+    resizeLane();
+    window.addEventListener('resize', resizeLane);
+
+    function drawLane(t) {
+      const W = laneEl.width, H = laneEl.height;
+      const HIT_X = 72;
+      const pps = (W - HIT_X) / LOOKAHEAD;
+
+      lc.clearRect(0, 0, W, H);
+
+      // hit line
+      const flashActive = hitFlash && performance.now() < hitFlash.until;
+      lc.save();
+      lc.strokeStyle = flashActive ? hitFlash.color : 'rgba(255,255,255,0.4)';
+      lc.lineWidth = flashActive ? 3 : 2;
+      if (flashActive) { lc.shadowBlur = 16; lc.shadowColor = hitFlash.color; }
+      lc.beginPath(); lc.moveTo(HIT_X, 8); lc.lineTo(HIT_X, H - 8); lc.stroke();
+      lc.restore();
+
+      // notes
+      matchedTaps.forEach((m, i) => {
+        const dt = m.beat - t;
+        if (dt > LOOKAHEAD || dt < -0.4) return;
+        const x = HIT_X + dt * pps;
+        const scored = scoredTaps.has(i);
+        lc.save();
+        lc.shadowBlur = scored ? 0 : 12;
+        lc.shadowColor = 'rgba(255,255,255,0.8)';
+        lc.fillStyle = scored ? 'rgba(255,255,255,0.2)' : '#fff';
+        lc.fillRect(x - 3, 12, 6, H - 24);
+        lc.restore();
+      });
+    }
 
     function tick() {
       if (audio.paused) return;
@@ -460,16 +513,23 @@
       const nextTap = matchedTaps.find(m => m.beat > t);
       countdown.textContent = nextTap ? `${(nextTap.beat - t).toFixed(1)}s` : '';
 
+      const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+      const dur = audio.duration;
+      document.getElementById('duration').textContent = isNaN(dur) ? '' : `${fmt(t)} / ${fmt(dur)}`;
+
       const missIdx = matchedTaps.findLastIndex(m => m.beat <= t - 0.2);
       if (missIdx >= 0 && !scoredTaps.has(missIdx)) {
         scoredTaps.add(missIdx);
         perfectStreak = 0;
         rating.textContent = 'MISS';
         rating.className = 'show miss';
+        emit('score', { total: score, label: 'MISS' });
+        hitFlash = { color: HIT_COLORS.miss, until: performance.now() + 300 };
         clearTimeout(ratingTimer);
         ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
       }
 
+      drawLane(t);
       requestAnimationFrame(tick);
     }
   </script>
