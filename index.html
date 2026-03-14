@@ -425,11 +425,19 @@
     let maxPossibleScore = 1;
     let lastTapIdx = -1;
     let perfectStreak = 0;
+    let streak = 0;         // good+ hits in a row (drives visual tier)
     let score = 0;
     const scoredTaps = new Set();
     const taps = [];
 
     const POINTS = { perfect: 100, great: 60, good: 30, bad: 10, miss: 0 };
+
+    // ── Bar interaction state ─────────────────────────────────────────────
+    const tapEchoes = [];   // { x, color, born } — fading tap marks
+    const laneEmojis = [];  // { x, y, vx, vy, emoji, born } — rainbow sparkles
+    let lastEmojiSpawn = 0;
+    let currentBallX = 0;
+    let laneH = LANE_H;     // animated lane height, lerps toward target each frame
 
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     audio.volume = 0.3;
@@ -574,20 +582,29 @@
       let label, cls;
       if (diff < 80) {
         perfectStreak++;
+        streak++;
         playPerfect();
-        label = perfectStreak > 1 ? `PERFECT x${perfectStreak}` : 'PERFECT';
+        label = `PERFECT x${perfectStreak}`;
         cls = 'perfect';
         score += POINTS.perfect + (perfectStreak * 20);
       } else {
         perfectStreak = 0;
-        if      (diff < 100) { label = 'GREAT'; cls = 'great'; score += POINTS.great; }
-        else if (diff < 180) { label = 'GOOD';  cls = 'good';  score += POINTS.good;  }
-        else                 { label = 'BAD';   cls = 'bad';   }
+        if (diff < 100) {
+          streak++;
+          label = 'GREAT'; cls = 'great'; score += POINTS.great;
+        } else if (diff < 180) {
+          streak++;
+          label = 'GOOD'; cls = 'good'; score += POINTS.good;
+        } else {
+          streak = 0;
+          label = 'BAD'; cls = 'bad';
+        }
       }
       scoreEl.textContent = score;
       emit('score', { total: score, label });
 
       hitFlash = { color: HIT_COLORS[cls], until: performance.now() + 400 };
+      tapEchoes.push({ x: 72, color: HIT_COLORS[cls], born: performance.now() });
     }
 
     function doPick(emoji) {
@@ -636,20 +653,122 @@
     });
 
     function drawLane(t) {
-      const W = canvasCSS.w, H = LANE_H;
+      const W = canvasCSS.w;
+      // smooth lerp toward tier target height — centered expansion
+      const tierH = streak >= 12 ? LANE_H + 12 : streak >= 9 ? LANE_H + 9 : streak >= 6 ? LANE_H + 6 : streak >= 3 ? LANE_H + 3 : LANE_H;
+      laneH += (tierH - laneH) * 0.07;
+      const H = laneH;
+      const extraH = H - LANE_H;
+
       const HIT_X = 72;
       const pps = (W - HIT_X) / LOOKAHEAD;
+      const CY = H / 2;
 
       gc.save();
-      gc.translate(0, canvasCSS.dfH);
+      gc.translate(0, canvasCSS.dfH - extraH / 2); // keep lane centered
 
-      // lane background
-      gc.fillStyle = 'rgba(255,255,255,0.1)';
+      // ── streak heat: animated gradient lane background ────────────────────
+      // Tiers: 3+=blue 6+=purple 9+=gold 12+=rainbow
+      const heatNow = performance.now();
+      gc.save();
       gc.beginPath();
       gc.roundRect(0, 0, W, H, 12);
-      gc.fill();
+      gc.clip();
 
-      // hit line
+      if (streak >= 12) {
+        // ── RAINBOW — flowing hue cycle, right side only ──
+        // base: glowing white (same as hit zone colour, always readable)
+        gc.fillStyle = 'rgba(255,255,255,0.12)';
+        gc.fillRect(0, 0, W, H);
+        // rainbow fill on top
+        const SEGS = 8;
+        const hueShift = (heatNow / 18) % 360;
+        const rainbowGrad = gc.createLinearGradient(0, 0, W, 0);
+        for (let s = 0; s <= SEGS; s++) {
+          const hue = (hueShift + (s / SEGS) * 360) % 360;
+          rainbowGrad.addColorStop(s / SEGS, `hsla(${hue},100%,60%,0.72)`);
+        }
+        gc.fillStyle = rainbowGrad;
+        gc.fillRect(0, 0, W, H);
+        // dark mask from left: fully opaque at hit line → transparent by ~30% of width
+        const maskW = W * 0.32;
+        const mask = gc.createLinearGradient(0, 0, maskW, 0);
+        mask.addColorStop(0,    'rgba(0,0,0,0.82)');
+        mask.addColorStop(0.55, 'rgba(0,0,0,0.30)');
+        mask.addColorStop(1,    'rgba(0,0,0,0)');
+        gc.fillStyle = mask;
+        gc.fillRect(0, 0, maskW, H);
+        // bright shimmer stripe
+        const rbPhase = (heatNow / 400) % 1;
+        const rbX = rbPhase * (W + 200) - 100;
+        const rbSh = gc.createLinearGradient(rbX - 60, 0, rbX + 60, 0);
+        rbSh.addColorStop(0,   'rgba(255,255,255,0)');
+        rbSh.addColorStop(0.5, 'rgba(255,255,255,0.32)');
+        rbSh.addColorStop(1,   'rgba(255,255,255,0)');
+        gc.fillStyle = rbSh;
+        gc.fillRect(0, 0, W, H);
+        // spawn shining emoji particles
+        if (heatNow - lastEmojiSpawn > 220) {
+          lastEmojiSpawn = heatNow;
+          const sparkEmojis = ['⭐','💫','✨','🌟','🎆','🎇','🌈','💥'];
+          const em = sparkEmojis[Math.floor(Math.random() * sparkEmojis.length)];
+          laneEmojis.push({
+            x: HIT_X + Math.random() * (W - HIT_X),
+            y: H / 2 + (Math.random() - 0.5) * (H * 0.5),
+            vx: (Math.random() - 0.5) * 1.4,
+            vy: -(1.2 + Math.random() * 1.6),
+            emoji: em, born: heatNow,
+          });
+        }
+      } else if (streak >= 9) {
+        // ── GOLD ──
+        gc.fillStyle = 'rgba(180,83,9,0.65)';
+        gc.fillRect(0, 0, W, H);
+        const gPhase = (heatNow / 650) % 1;
+        const gX = gPhase * (W + 240) - 120;
+        const gSh = gc.createLinearGradient(gX - 100, 0, gX + 100, 0);
+        gSh.addColorStop(0,   'rgba(255,255,255,0)');
+        gSh.addColorStop(0.5, 'rgba(253,224,71,0.52)');
+        gSh.addColorStop(1,   'rgba(255,255,255,0)');
+        gc.fillStyle = gSh;
+        gc.fillRect(0, 0, W, H);
+        const gPulse = 0.06 + Math.sin(heatNow / 200) * 0.05;
+        gc.fillStyle = `rgba(251,191,36,${gPulse})`;
+        gc.fillRect(0, 0, W, H);
+      } else if (streak >= 6) {
+        // ── PURPLE ──
+        gc.fillStyle = 'rgba(126,34,206,0.45)';
+        gc.fillRect(0, 0, W, H);
+        const pPhase = (heatNow / 750) % 1;
+        const pX = pPhase * (W + 240) - 120;
+        const pSh = gc.createLinearGradient(pX - 90, 0, pX + 90, 0);
+        pSh.addColorStop(0,   'rgba(255,255,255,0)');
+        pSh.addColorStop(0.5, 'rgba(255,255,255,0.26)');
+        pSh.addColorStop(1,   'rgba(255,255,255,0)');
+        gc.fillStyle = pSh;
+        gc.fillRect(0, 0, W, H);
+        const pPulse = 0.05 + Math.sin(heatNow / 220) * 0.04;
+        gc.fillStyle = `rgba(216,180,254,${pPulse})`;
+        gc.fillRect(0, 0, W, H);
+      } else if (streak >= 3) {
+        // ── BLUE ──
+        gc.fillStyle = 'rgba(29,78,216,0.30)';
+        gc.fillRect(0, 0, W, H);
+        const bPhase = (heatNow / 900) % 1;
+        const bX = bPhase * (W + 240) - 120;
+        const bSh = gc.createLinearGradient(bX - 110, 0, bX + 110, 0);
+        bSh.addColorStop(0,   'rgba(255,255,255,0)');
+        bSh.addColorStop(0.5, 'rgba(147,197,253,0.32)');
+        bSh.addColorStop(1,   'rgba(255,255,255,0)');
+        gc.fillStyle = bSh;
+        gc.fillRect(0, 0, W, H);
+      } else {
+        gc.fillStyle = 'rgba(255,255,255,0.07)';
+        gc.fillRect(0, 0, W, H);
+      }
+      gc.restore();
+
+      // ── hit line ──────────────────────────────────────────────────────────
       const flashActive = hitFlash && performance.now() < hitFlash.until;
       gc.save();
       gc.strokeStyle = flashActive ? hitFlash.color : 'rgba(255,255,255,0.4)';
@@ -658,19 +777,91 @@
       gc.beginPath(); gc.moveTo(HIT_X, 8); gc.lineTo(HIT_X, H - 8); gc.stroke();
       gc.restore();
 
-      // notes
+      // ── notes — next 3 unscored highlighted, rest normal ──────────────────
+      let lookaheadCount = 0;
       matchedTaps.forEach((m, i) => {
         const dt = m.beat - t;
         if (dt > LOOKAHEAD || dt < -0.4) return;
         const x = HIT_X + dt * pps;
         const scored = scoredTaps.has(i);
+        const isNext = !scored && dt > 0 && lookaheadCount < 3;
+        if (isNext) lookaheadCount++;
         gc.save();
-        gc.shadowBlur = scored ? 0 : 12;
-        gc.shadowColor = 'rgba(255,255,255,0.8)';
-        gc.fillStyle = scored ? 'rgba(255,255,255,0.2)' : '#fff';
-        gc.fillRect(x - 3, 12, 6, H - 24);
+        if (scored) {
+          gc.fillStyle = 'rgba(255,255,255,0.15)';
+          gc.shadowBlur = 0;
+          gc.fillRect(x - 3, 12, 6, H - 24);
+        } else if (isNext) {
+          const rank = lookaheadCount; // 1 = next, 2, 3
+          // glow multiplier scales with tier
+          const tier = streak >= 12 ? 4 : streak >= 9 ? 3 : streak >= 6 ? 2 : streak >= 3 ? 1 : 0;
+          const noteW = rank === 1 ? 11 : rank === 2 ? 7 : 5;
+          const alpha  = rank === 1 ? 1.0 : rank === 2 ? 0.72 : 0.45;
+          // glow colour tracks streak tier
+          const glowR  = streak >= 12 ? `255,255,255`  :
+                         streak >= 9  ? `253,224,71`   :
+                         streak >= 6  ? `216,180,254`  :
+                         streak >= 3  ? `147,197,253`  : `255,255,255`;
+          const baseInner = rank === 1 ? 22 : rank === 2 ? 14 : 8;
+          const baseOuter = rank === 1 ? 52 : rank === 2 ? 28 : 0;
+          const glowMul = 1 + tier * 0.2;
+          gc.fillStyle   = `rgba(${glowR},${alpha})`;
+          gc.shadowBlur  = baseInner * glowMul;
+          gc.shadowColor = `rgba(${glowR},0.95)`;
+          gc.fillRect(x - noteW / 2, 8, noteW, H - 16);
+          if (baseOuter > 0) {
+            gc.shadowBlur  = baseOuter * glowMul;
+            gc.shadowColor = `rgba(${glowR},0.55)`;
+            gc.fillRect(x - noteW / 2, 8, noteW, H - 16);
+          }
+        } else {
+          gc.fillStyle = 'rgba(255,255,255,0.32)';
+          gc.shadowBlur = 5;
+          gc.shadowColor = 'rgba(255,255,255,0.4)';
+          gc.fillRect(x - 3, 12, 6, H - 24);
+        }
         gc.restore();
       });
+
+      // ── rainbow emoji particles ───────────────────────────────────────────
+      const now = performance.now();
+      const EMOJI_LIFE = 1400;
+      for (let i = laneEmojis.length - 1; i >= 0; i--) {
+        const em = laneEmojis[i];
+        const age = now - em.born;
+        if (age > EMOJI_LIFE) { laneEmojis.splice(i, 1); continue; }
+        const prog = age / EMOJI_LIFE;
+        em.x += em.vx;
+        em.y += em.vy;
+        em.vy += 0.04; // gentle gravity
+        gc.save();
+        gc.globalAlpha = Math.pow(1 - prog, 1.4);
+        const sz = 14 + prog * 10;
+        gc.font = `${sz}px serif`;
+        gc.textAlign = 'center';
+        gc.textBaseline = 'middle';
+        gc.fillText(em.emoji, em.x, em.y);
+        gc.restore();
+      }
+
+      // ── tap echo marks at HIT_X ───────────────────────────────────────────
+      for (let i = tapEchoes.length - 1; i >= 0; i--) {
+        const echo = tapEchoes[i];
+        const age = now - echo.born;
+        if (age > 700) { tapEchoes.splice(i, 1); continue; }
+        const alpha = (1 - age / 700) * 0.9;
+        const r = 6 + (age / 700) * 14;
+        gc.save();
+        gc.beginPath();
+        gc.arc(HIT_X, CY, r, 0, Math.PI * 2);
+        gc.globalAlpha = alpha;
+        gc.strokeStyle = echo.color;
+        gc.lineWidth = 2.5;
+        gc.shadowBlur = 10;
+        gc.shadowColor = echo.color;
+        gc.stroke();
+        gc.restore();
+      }
 
       gc.restore();
     }
@@ -688,6 +879,7 @@
         scoredTaps.add(missIdx);
         inputBuffer = '';
         perfectStreak = 0;
+        streak = 0;
         emit('score', { total: score, label: 'MISS' });
         hitFlash = { color: HIT_COLORS.miss, until: performance.now() + 300 };
       }
