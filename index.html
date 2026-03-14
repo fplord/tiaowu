@@ -490,6 +490,66 @@
     let inputBuffer = '';
     const KEY_MAP = { ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R' };
 
+    // ── orb arrow drawing (preview style) ────────────────────────────────────
+    const SEQ_ORB_COLORS = {
+      unmatched: { inner: '#7eb8f7', mid: '#3a6fd8', outer: '#1a2e6e', glow: 'rgba(80,140,255,0.6)',  rim: '#a8d0ff' },
+      matched:   { inner: '#ffe97a', mid: '#f0a800', outer: '#7a4800', glow: 'rgba(255,190,40,0.7)',  rim: '#fff3aa' },
+    };
+    const SEQ_ARROW_PATH = new Path2D("M 0 -20 L 20 0 L 10 0 L 10 20 L -10 20 L -10 0 L -20 0 Z");
+    const SEQ_ROTATIONS  = { U: 0, R: Math.PI / 2, D: Math.PI, L: -Math.PI / 2 };
+
+    function drawSeqOrb(x, y, radius, state) {
+      const c = SEQ_ORB_COLORS[state];
+      gc.save();
+      gc.translate(x, y);
+      gc.shadowColor = c.glow;
+      gc.shadowBlur = 6;
+      const radGrad = gc.createRadialGradient(-radius * 0.25, -radius * 0.3, radius * 0.05, 0, 0, radius);
+      radGrad.addColorStop(0, c.inner);
+      radGrad.addColorStop(0.5, c.mid);
+      radGrad.addColorStop(1, c.outer);
+      gc.beginPath(); gc.arc(0, 0, radius, 0, Math.PI * 2);
+      gc.fillStyle = radGrad; gc.fill();
+      gc.shadowBlur = 0;
+      const rimGrad = gc.createRadialGradient(-radius * 0.3, -radius * 0.35, 0, -radius * 0.1, -radius * 0.15, radius * 0.65);
+      rimGrad.addColorStop(0, 'rgba(255,255,255,0.55)');
+      rimGrad.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+      rimGrad.addColorStop(1, 'rgba(255,255,255,0)');
+      gc.beginPath(); gc.arc(0, 0, radius, 0, Math.PI * 2);
+      gc.fillStyle = rimGrad; gc.fill();
+      gc.beginPath(); gc.arc(0, 0, radius - 1, 0, Math.PI * 2);
+      gc.strokeStyle = c.rim; gc.lineWidth = 1.5; gc.globalAlpha = 0.5; gc.stroke();
+      gc.restore();
+    }
+
+    function drawSeqArrow(x, y, dir, state, scale = 1) {
+      const r = 34;
+      drawSeqOrb(x, y, r, state);
+      gc.save();
+      gc.translate(x, y);
+      gc.scale(scale, scale);
+      gc.rotate(SEQ_ROTATIONS[dir]);
+
+      // Faint border pass
+      gc.strokeStyle = 'rgba(0,0,0,0.25)';
+      gc.lineWidth = 4;
+      gc.lineJoin = 'round';
+      gc.stroke(SEQ_ARROW_PATH);
+
+      if (state === 'matched') {
+        const grad = gc.createLinearGradient(0, -20, 0, 20);
+        grad.addColorStop(0, '#fffde0'); grad.addColorStop(1, '#ffe066');
+        gc.fillStyle = grad;
+        gc.shadowColor = '#ffe066'; gc.shadowBlur = 18;
+      } else {
+        gc.fillStyle = '#ffffff';
+        gc.shadowColor = 'rgba(255,255,255,0.6)'; gc.shadowBlur = 6;
+      }
+      gc.strokeStyle = 'rgba(255,255,255,0.4)'; gc.lineWidth = 1.5; gc.lineJoin = 'round';
+      gc.fill(SEQ_ARROW_PATH); gc.stroke(SEQ_ARROW_PATH);
+      gc.restore();
+    }
+
     function drawSequence(t) {
       const nextTap = matchedTaps.find((m, i) => m.beat > t && !scoredTaps.has(i));
       if (!nextTap || !nextTap.sequence) return;
@@ -507,34 +567,17 @@
       gc.fillText(`LEVEL ${seq.length}`, W / 2, baseY + 10);
       gc.restore();
 
-      // arrow circles
-      const circleR = Math.max(20, Math.min(W * 0.05, 36));
-      const gap = 6;
-      const totalW = seq.length * (circleR * 2 + gap) - gap;
-      const startX = (W - totalW) / 2 + circleR;
-      const circleY = baseY + 52 + circleR;
-      const fontSize = Math.round(circleR * 1.1);
+      // orb arrows
+      const orbR = Math.max(22, Math.min(W * 0.055, 34));
+      const gap = 10;
+      const totalW = seq.length * (orbR * 2 + gap) - gap;
+      const startX = (W - totalW) / 2 + orbR;
+      const orbY = baseY + 52 + orbR;
 
       seq.split('').forEach((c, i) => {
-        const x = startX + i * (circleR * 2 + gap);
+        const x = startX + i * (orbR * 2 + gap);
         const matched = i < inputBuffer.length;
-
-        gc.save();
-        gc.beginPath();
-        gc.arc(x, circleY, circleR, 0, Math.PI * 2);
-        gc.strokeStyle = matched ? '#4ade80' : 'rgba(255,255,255,0.7)';
-        gc.lineWidth = 2;
-        if (matched) { gc.shadowBlur = 8; gc.shadowColor = '#4ade80'; }
-        gc.stroke();
-        gc.restore();
-
-        gc.save();
-        gc.font = `${fontSize}px monospace`;
-        gc.fillStyle = matched ? '#4ade80' : '#fff';
-        gc.textAlign = 'center';
-        gc.textBaseline = 'middle';
-        gc.fillText(ARROWS[c], x, circleY);
-        gc.restore();
+        drawSeqArrow(x, orbY, c, matched ? 'matched' : 'unmatched');
       });
     }
 
