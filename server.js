@@ -4,7 +4,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 
 // ── static file server ──
-const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.webm': 'audio/webm', '.wav': 'audio/wav' };
+const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.webm': 'audio/webm', '.wav': 'audio/wav', '.jpg': 'image/jpeg', '.png': 'image/png' };
 
 const httpServer = http.createServer((req, res) => {
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : decodeURIComponent(req.url));
@@ -67,6 +67,21 @@ wss.on('connection', (ws) => {
     const { type, ...data } = JSON.parse(raw);
     const player = players.get(ws);
     if (!player) return;
+
+    if (type === 'pick_emoji') {
+      if (gameState !== 'lobby' || player.ready) return;
+      const wanted = data.emoji;
+      if (!EMOJIS.includes(wanted)) return;
+      const taken = playerList().some(p => p.emoji === wanted && players.get(ws) !== p);
+      if (taken) {
+        send(ws, 'pick_rejected', { emoji: wanted });
+        return;
+      }
+      player.emoji = wanted;
+      send(ws, 'assigned', { emoji: wanted, gameState });
+      broadcastPlayers();
+      return;
+    }
 
     if (type === 'ready') {
       if (gameState !== 'lobby') return;
