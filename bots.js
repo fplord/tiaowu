@@ -3,7 +3,7 @@ const fs = require('fs');
 
 const N_BOTS = 3;
 const SERVER = 'ws://localhost:3000';
-const beats = JSON.parse(fs.readFileSync('beatsmatched.json')).map(b => b.beat);
+const beats = JSON.parse(fs.readFileSync('songs/xiguan_manyao/beatmap.json')).map(b => b.beat);
 
 function humanError() {
   // Box-Muller for gaussian-ish spread, clamped to ±400ms
