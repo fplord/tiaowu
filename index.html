@@ -60,7 +60,7 @@
     // ── merged game canvas ──
     const LANE_H = 90;
     const SEQ_H = 160;
-    const LOOKAHEAD = 15;
+    const LOOKAHEAD = 5;
     const HIT_COLORS = { perfect: '#c084fc', great: '#22aadd', good: '#66bb44', bad: '#ff7766', miss: '#ccc' };
     const ARROWS = { U: '↑', D: '↓', L: '←', R: '→' };
     let hitFlash = null;
@@ -492,8 +492,8 @@
 
     // ── orb arrow drawing (preview style) ────────────────────────────────────
     const SEQ_ORB_COLORS = {
-      unmatched: { inner: '#7eb8f7', mid: '#3a6fd8', outer: '#1a2e6e', glow: 'rgba(80,140,255,0.6)',  rim: '#a8d0ff' },
-      matched:   { inner: '#ffe97a', mid: '#f0a800', outer: '#7a4800', glow: 'rgba(255,190,40,0.7)',  rim: '#fff3aa' },
+      unmatched: { inner: '#b0b0b0', mid: '#606060', outer: '#2a2a2a', glow: 'rgba(222,222,222,0.7)', rim: '#ffffff' },
+      matched:   { inner: '#a0f0a0', mid: '#22c55e', outer: '#14532d', glow: 'rgba(222,222,222,0.7)',  rim: '#ffffff' },
     };
     const SEQ_ARROW_PATH = new Path2D("M 0 -20 L 20 0 L 10 0 L 10 20 L -10 20 L -10 0 L -20 0 Z");
     const SEQ_ROTATIONS  = { U: 0, R: Math.PI / 2, D: Math.PI, L: -Math.PI / 2 };
@@ -524,27 +524,21 @@
 
     function drawSeqArrow(x, y, dir, state, scale = 1) {
       const r = 34;
+      const c = SEQ_ORB_COLORS[state];
       drawSeqOrb(x, y, r, state);
       gc.save();
       gc.translate(x, y);
       gc.scale(scale, scale);
       gc.rotate(SEQ_ROTATIONS[dir]);
 
-      // Faint border pass
       gc.strokeStyle = 'rgba(0,0,0,0.25)';
       gc.lineWidth = 4;
       gc.lineJoin = 'round';
       gc.stroke(SEQ_ARROW_PATH);
 
-      if (state === 'matched') {
-        const grad = gc.createLinearGradient(0, -20, 0, 20);
-        grad.addColorStop(0, '#fffde0'); grad.addColorStop(1, '#ffe066');
-        gc.fillStyle = grad;
-        gc.shadowColor = '#ffe066'; gc.shadowBlur = 18;
-      } else {
-        gc.fillStyle = '#ffffff';
-        gc.shadowColor = 'rgba(255,255,255,0.6)'; gc.shadowBlur = 6;
-      }
+      gc.fillStyle = c.rim;
+      gc.shadowColor = c.glow;
+      gc.shadowBlur = state === 'matched' ? 18 : 6;
       gc.strokeStyle = 'rgba(255,255,255,0.4)'; gc.lineWidth = 1.5; gc.lineJoin = 'round';
       gc.fill(SEQ_ARROW_PATH); gc.stroke(SEQ_ARROW_PATH);
       gc.restore();
