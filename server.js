@@ -87,7 +87,7 @@ wss.on('connection', (ws) => {
 
     if (type === 'pick_song') {
       if (gameState !== 'lobby') return;
-      const SONGS = ['xiguan_manyao', 'trouble_maker'];
+      const SONGS = ['xiguan_manyao', 'trouble_maker', 'golden'];
       if (!SONGS.includes(data.song)) return;
       selectedSong = data.song;
       broadcast('song', { song: selectedSong });

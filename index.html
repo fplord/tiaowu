@@ -16,7 +16,7 @@
     <div id="game-title">ANIMAL DANCE BIT</div>
     <div id="your-player">your player is <span id="my-emoji"></span></div>
     <div id="emoji-picker"></div>
-    <div id="song-picker"></div>
+    <select id="song-picker"></select>
     <div id="player-list"></div>
     <button id="ready-btn">READY</button>
     <div id="lobby-countdown"></div>
@@ -360,21 +360,21 @@
     const SONGS = [
       { id: 'xiguan_manyao', name: '习惯慢摇', audio: 'xiguan_manyao.webm' },
       { id: 'trouble_maker', name: 'Trouble Maker', audio: 'trouble_maker_clipped.webm' },
+      { id: 'golden', name: 'Golden', audio: 'golden.webm' },
     ];
     let currentSong = SONGS[0].id;
 
     function renderSongPicker() {
-      document.getElementById('song-picker').innerHTML = SONGS.map(s =>
-        `<button class="song-btn${s.id === currentSong ? ' selected' : ''}" data-song="${s.id}">${s.name}</button>`
+      const el = document.getElementById('song-picker');
+      el.innerHTML = SONGS.map(s =>
+        `<option value="${s.id}"${s.id === currentSong ? ' selected' : ''}>${s.name}</option>`
       ).join('');
     }
 
     renderSongPicker();
 
-    document.getElementById('song-picker').addEventListener('click', e => {
-      const btn = e.target.closest('.song-btn');
-      if (!btn) return;
-      emit('pick_song', { song: btn.dataset.song });
+    document.getElementById('song-picker').addEventListener('change', e => {
+      emit('pick_song', { song: e.target.value });
     });
 
     function setReadyBtnLoading(loading) {
