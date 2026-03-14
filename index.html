@@ -536,10 +536,10 @@
         perfectStreak = 0;
         if (diff < 100) {
           streak++;
-          label = `GREAT x${streak}`; cls = 'great'; score += POINTS.great;
+          label = 'GREAT'; cls = 'great'; score += POINTS.great;
         } else if (diff < 180) {
           streak++;
-          label = `GOOD x${streak}`; cls = 'good'; score += POINTS.good;
+          label = 'GOOD'; cls = 'good'; score += POINTS.good;
         } else {
           streak = 0;
           label = 'BAD'; cls = 'bad';
