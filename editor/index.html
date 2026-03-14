@@ -32,7 +32,7 @@
     let candidateBeats = [];    // raw beat times for drawing
     let candidateData = [];     // full {beat, sequence} objects
 
-    fetch('../songs/trouble_maker/beats_trouble_maker.json')
+    fetch('../songs/trouble_maker/beats.json')
       .then(r => r.json())
       .then(data => { allBeats = data.beat_times; });
 
