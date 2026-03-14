@@ -1,7 +1,47 @@
 [
   {
+    "beat": 2.019269119665808,
+    "sequence": "LU"
+  },
+  {
+    "beat": 3.914182577997401,
+    "sequence": "UR"
+  },
+  {
+    "beat": 5.774923118998594,
+    "sequence": "DL"
+  },
+  {
+    "beat": 7.641308244667961,
+    "sequence": "DD"
+  },
+  {
+    "beat": 9.491486744000408,
+    "sequence": "UL"
+  },
+  {
+    "beat": 11.390758535998895,
+    "sequence": "RR"
+  },
+  {
+    "beat": 13.261535285999292,
+    "sequence": "RD"
+  },
+  {
+    "beat": 14.230292785666439,
+    "sequence": "LL"
+  },
+  {
+    "beat": 15.152776160999348,
+    "sequence": "UU"
+  },
+  {
+    "beat": 16.10321111899952,
+    "sequence": "LR"
+  },
+  {
     "beat": 17.067,
-    "sequence": "RDUULD"
+    "sequence": "DD"
   },
   {
     "beat": 20.805,
