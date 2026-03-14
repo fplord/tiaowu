@@ -15,6 +15,7 @@ function humanError() {
 function createBot(index) {
   const ws = new WebSocket(SERVER);
   let score = 0;
+  let perfectStreak = 0;
 
   ws.on('message', (raw) => {
     const msg = JSON.parse(raw);
@@ -33,10 +34,15 @@ function createBot(index) {
           if (ws.readyState !== WebSocket.OPEN) return;
           const diff = Math.abs(error);
           let label, points;
-          if      (diff < 80)  { label = 'PERFECT'; points = 100; }
-          else if (diff < 100) { label = 'GREAT';   points = 60;  }
-          else if (diff < 180) { label = 'GOOD';    points = 30;  }
-          else                 { label = 'BAD';      points = 0;   }
+          if (diff < 80) {
+            perfectStreak++;
+            label = `PERFECT x${perfectStreak}`; points = 100;
+          } else {
+            perfectStreak = 0;
+            if      (diff < 100) { label = 'GREAT'; points = 60; }
+            else if (diff < 180) { label = 'GOOD';  points = 30; }
+            else                 { label = 'BAD';   points = 0;  }
+          }
           score += points;
           ws.send(JSON.stringify({ type: 'score', total: score, label }));
         }, Math.max(0, delay));
