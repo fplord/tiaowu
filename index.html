@@ -21,29 +21,23 @@
     <div id="lobby-countdown"></div>
   </div>
 
-  <!-- scoreboard (visible during game) -->
-  <div id="scoreboard"></div>
+  <div id="game">
+    <!-- scoreboard (visible during game) -->
+    <div id="scoreboard"></div>
 
-  <!-- game -->
-  <div id="top">
-    <div id="score">score <b id="score-val">0</b></div>
-    <div id="countdown"></div>
-    <div id="duration"></div>
-  </div>
+    <!-- game -->
+    <div id="top">
+      <div id="score">score <b id="score-val">0</b></div>
+      <div id="countdown"></div>
+    </div>
 
-  <canvas id="dancefloor"></canvas>
+    <canvas id="game-canvas"></canvas>
 
-  <div id="middle">
-    <div id="rating"></div>
-    <canvas id="lane"></canvas>
-    <div id="level"></div>
-    <div id="sequence"></div>
-  </div>
-
-  <div id="bottom">
-    <div id="controls" style="display:none">
-      <button id="export">export</button>
-      <button id="btn">▶</button>
+    <div id="bottom">
+      <div id="controls" style="display:none">
+        <button id="export">export</button>
+        <button id="btn">▶</button>
+      </div>
     </div>
   </div>
 
@@ -61,22 +55,39 @@
     const shownLabels = {};
     const labelTimers = {};
     const sb = document.getElementById('scoreboard');
-    const dfCanvas = document.getElementById('dancefloor');
-    const dfc = dfCanvas.getContext('2d');
 
-    function resizeDancefloor() {
-      const size = Math.min(window.innerWidth, 1024);
-      dfCanvas.width = size;
-      dfCanvas.height = size;
+    // ── merged game canvas ──
+    const LANE_H = 90;
+    const SEQ_H = 160;
+    const LOOKAHEAD = 15;
+    const HIT_COLORS = { perfect: '#c084fc', great: '#22aadd', good: '#66bb44', bad: '#ff7766', miss: '#ccc' };
+    const ARROWS = { U: '↑', D: '↓', L: '←', R: '→' };
+    let hitFlash = null;
+
+    const canvas = document.getElementById('game-canvas');
+    const gc = canvas.getContext('2d');
+    let canvasCSS = { w: 0, h: 0, dfH: 0 };
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.min(window.innerWidth, 1024);
+      const dfH = Math.round(w * 0.45);
+      const h = dfH + LANE_H + SEQ_H;
+      canvasCSS = { w, h, dfH, seqY: dfH + LANE_H };
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      gc.scale(dpr, dpr);
     }
-    resizeDancefloor();
-    window.addEventListener('resize', () => { resizeDancefloor(); drawDancefloor(); });
+    resizeCanvas();
+    window.addEventListener('resize', () => { resizeCanvas(); draw(audio.currentTime); });
 
     const LABEL_COLORS = { perfect: '#c084fc', great: '#77ddff', good: '#aad888', bad: '#ff7766', miss: '#ff4444' };
 
     const emojiAnims = {}; // emoji -> { startTime, particles }
     const barPositions = {}; // emoji -> current animated x
-  
+
     let animLoopRunning = false;
 
     function triggerPerfect(emoji) {
@@ -97,16 +108,48 @@
     }
 
     function animLoop() {
-      const now = performance.now();
       const active = Object.keys(emojiAnims);
       if (!active.length) { animLoopRunning = false; return; }
-      drawDancefloor();
+      draw(audio.currentTime);
       requestAnimationFrame(animLoop);
     }
 
+    const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+    function drawDuration(t) {
+      const W = canvasCSS.w;
+      const dur = audio.duration;
+      if (isNaN(dur)) return;
+
+      // progress bar across top
+      const progress = t / dur;
+      gc.save();
+      gc.fillStyle = 'rgba(255,255,255,0.12)';
+      gc.fillRect(0, 0, W, 3);
+      gc.fillStyle = 'rgba(255,255,255,0.7)';
+      gc.fillRect(0, 0, W * progress, 3);
+      gc.restore();
+
+      // time text
+      gc.save();
+      gc.font = '12px monospace';
+      gc.fillStyle = 'rgba(255,255,255,0.5)';
+      gc.textAlign = 'right';
+      gc.textBaseline = 'top';
+      gc.fillText(`${fmt(t)} / ${fmt(dur)}`, W - 8, 8);
+      gc.restore();
+    }
+
+    function draw(t) {
+      gc.clearRect(0, 0, canvasCSS.w, canvasCSS.h);
+      drawDancefloor();
+      drawDuration(t);
+      drawLane(t);
+      drawSequence(t);
+    }
+
     function drawDancefloor() {
-      const W = dfCanvas.width, H = dfCanvas.height;
-      dfc.clearRect(0, 0, W, H);
+      const W = canvasCSS.w, H = canvasCSS.dfH;
       if (!lastBoard.length) return;
 
       const step = W / lastBoard.length;
@@ -127,7 +170,7 @@
         }
       }
 
-      dfc.textAlign = 'center';
+      gc.textAlign = 'center';
 
       lastBoard.forEach((p, i) => {
         const emoji = p.emoji;
@@ -144,21 +187,20 @@
         const barH = minBarH + norm * (maxBarH - minBarH);
         const barY = H - BOT - barH;
 
-        dfc.save();
-        dfc.fillStyle = p.emoji === myEmoji ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)';
-        dfc.beginPath();
-        dfc.roundRect(x - barW / 2, barY, barW, barH, 8);
-        dfc.fill();
-        dfc.restore();
+        gc.save();
+        gc.fillStyle = p.emoji === myEmoji ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)';
+        gc.beginPath();
+        gc.roundRect(x - barW / 2, barY, barW, barH, 8);
+        gc.fill();
+        gc.restore();
 
         // score at bottom of bar
-        dfc.save();
-        dfc.font = 'bold 24px monospace';
-        dfc.textBaseline = 'bottom';
-        dfc.fillStyle = 'rgba(255,255,255,0.7)';
-        dfc.fillText(p.score, x, H - BOT - 4);
-        dfc.restore();
-    
+        gc.save();
+        gc.font = 'bold 24px monospace';
+        gc.textBaseline = 'bottom';
+        gc.fillStyle = 'rgba(255,255,255,0.7)';
+        gc.fillText(p.score, x, H - BOT - 4);
+        gc.restore();
 
         // emoji sits on top of bar
         const emojiY = barY - EMOJI_HALF + 10;
@@ -170,56 +212,56 @@
           if (t >= 1) {
             delete emojiAnims[emoji];
           } else {
-            dfc.save();
+            gc.save();
             const ringR = 68 + t * 88;
-            dfc.beginPath();
-            dfc.arc(x, emojiY, ringR, 0, Math.PI * 2);
-            dfc.strokeStyle = `rgba(192,132,252,${(1 - t) * 0.9})`;
-            dfc.lineWidth = 4 * (1 - t) + 1;
-            dfc.shadowBlur = 20;
-            dfc.shadowColor = '#c084fc';
-            dfc.stroke();
-            dfc.restore();
+            gc.beginPath();
+            gc.arc(x, emojiY, ringR, 0, Math.PI * 2);
+            gc.strokeStyle = `rgba(192,132,252,${(1 - t) * 0.9})`;
+            gc.lineWidth = 4 * (1 - t) + 1;
+            gc.shadowBlur = 20;
+            gc.shadowColor = '#c084fc';
+            gc.stroke();
+            gc.restore();
 
             anim.particles.forEach(part => {
               const dist = t * part.speed;
-              dfc.save();
-              dfc.globalAlpha = 1 - t;
-              dfc.beginPath();
-              dfc.arc(x + Math.cos(part.angle) * dist, emojiY + Math.sin(part.angle) * dist, part.r * (1 - t * 0.4), 0, Math.PI * 2);
-              dfc.fillStyle = part.color;
-              dfc.shadowBlur = 8;
-              dfc.shadowColor = part.color;
-              dfc.fill();
-              dfc.restore();
+              gc.save();
+              gc.globalAlpha = 1 - t;
+              gc.beginPath();
+              gc.arc(x + Math.cos(part.angle) * dist, emojiY + Math.sin(part.angle) * dist, part.r * (1 - t * 0.4), 0, Math.PI * 2);
+              gc.fillStyle = part.color;
+              gc.shadowBlur = 8;
+              gc.shadowColor = part.color;
+              gc.fill();
+              gc.restore();
             });
           }
         }
 
         // emoji
         const scale = 1 + pulse;
-        dfc.save();
-        dfc.translate(x, emojiY);
-        dfc.scale(scale, scale);
-        dfc.font = '128px serif';
-        dfc.textBaseline = 'middle';
-        dfc.shadowColor = 'rgba(0,0,0,0.5)';
-        dfc.shadowBlur = 16;
-        dfc.shadowOffsetY = 6;
-        dfc.fillText(emoji, 0, 0);
-        dfc.restore();
+        gc.save();
+        gc.translate(x, emojiY);
+        gc.scale(scale, scale);
+        gc.font = '128px serif';
+        gc.textBaseline = 'middle';
+        gc.shadowColor = 'rgba(0,0,0,0.5)';
+        gc.shadowBlur = 16;
+        gc.shadowOffsetY = 6;
+        gc.fillText(emoji, 0, 0);
+        gc.restore();
 
         // label above emoji
         if (lbl) {
           const cls = lbl.split(' ')[0].toLowerCase();
-          dfc.save();
-          dfc.font = 'bold 36px monospace';
-          dfc.textBaseline = 'bottom';
-          dfc.fillStyle = LABEL_COLORS[cls] || '#fff';
-          dfc.shadowColor = 'rgba(0,0,0,0.6)';
-          dfc.shadowBlur = 6;
-          dfc.fillText(lbl, x, emojiY - EMOJI_HALF - 8);
-          dfc.restore();
+          gc.save();
+          gc.font = 'bold 36px monospace';
+          gc.textBaseline = 'bottom';
+          gc.fillStyle = LABEL_COLORS[cls] || '#fff';
+          gc.shadowColor = 'rgba(0,0,0,0.6)';
+          gc.shadowBlur = 6;
+          gc.fillText(lbl, x, emojiY - EMOJI_HALF - 8);
+          gc.restore();
         }
       });
     }
@@ -233,7 +275,7 @@
           </div>`;
       }).join('');
 
-      drawDancefloor();
+      draw(audio.currentTime);
     }
 
     ws.onmessage = ({ data }) => {
@@ -273,7 +315,8 @@
       }
 
       if (msg.type === 'start') {
-        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('lobby').style.display = 'none';
+        document.getElementById('game').style.display = 'flex';
         ctx.resume();
         audio.play();
         btn.textContent = '⏸';
@@ -311,13 +354,11 @@
     const audio = document.getElementById('audio');
     const btn = document.getElementById('btn');
     const countdown = document.getElementById('countdown');
-    const rating = document.getElementById('rating');
     const scoreEl = document.getElementById('score-val');
 
     let matchedTaps = [];
     let maxPossibleScore = 1;
     let lastTapIdx = -1;
-    let ratingTimer = null;
     let perfectStreak = 0;
     let score = 0;
     const scoredTaps = new Set();
@@ -385,17 +426,53 @@
 
     let inputBuffer = '';
     const KEY_MAP = { ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R' };
-    const seqEl = document.getElementById('sequence');
 
-    function renderSequence() {
-      const t = audio.paused ? 0 : audio.currentTime;
+    function drawSequence(t) {
       const nextTap = matchedTaps.find((m, i) => m.beat > t && !scoredTaps.has(i));
-      if (!nextTap) { seqEl.innerHTML = ''; document.getElementById('level').textContent = ''; return; }
-      document.getElementById('level').textContent = `LEVEL ${nextTap.sequence.length}`;
-      seqEl.innerHTML = nextTap.sequence.split('').map((c, i) => {
+      if (!nextTap || !nextTap.sequence) return;
+
+      const W = canvasCSS.w;
+      const baseY = canvasCSS.seqY;
+      const seq = nextTap.sequence;
+
+      // level label
+      gc.save();
+      gc.font = 'bold 28px monospace';
+      gc.fillStyle = 'rgba(255,255,255,0.9)';
+      gc.textAlign = 'center';
+      gc.textBaseline = 'top';
+      gc.fillText(`LEVEL ${seq.length}`, W / 2, baseY + 10);
+      gc.restore();
+
+      // arrow circles
+      const circleR = Math.max(20, Math.min(W * 0.05, 36));
+      const gap = 6;
+      const totalW = seq.length * (circleR * 2 + gap) - gap;
+      const startX = (W - totalW) / 2 + circleR;
+      const circleY = baseY + 52 + circleR;
+      const fontSize = Math.round(circleR * 1.1);
+
+      seq.split('').forEach((c, i) => {
+        const x = startX + i * (circleR * 2 + gap);
         const matched = i < inputBuffer.length;
-        return `<span style="${matched ? 'border-color:#4ade80;color:#4ade80' : ''}">${ARROWS[c]}</span>`;
-      }).join('');
+
+        gc.save();
+        gc.beginPath();
+        gc.arc(x, circleY, circleR, 0, Math.PI * 2);
+        gc.strokeStyle = matched ? '#4ade80' : 'rgba(255,255,255,0.7)';
+        gc.lineWidth = 2;
+        if (matched) { gc.shadowBlur = 8; gc.shadowColor = '#4ade80'; }
+        gc.stroke();
+        gc.restore();
+
+        gc.save();
+        gc.font = `${fontSize}px monospace`;
+        gc.fillStyle = matched ? '#4ade80' : '#fff';
+        gc.textAlign = 'center';
+        gc.textBaseline = 'middle';
+        gc.fillText(ARROWS[c], x, circleY);
+        gc.restore();
+      });
     }
 
     document.addEventListener('keydown', e => {
@@ -413,7 +490,7 @@
         } else {
           inputBuffer = '';
         }
-        renderSequence();
+        draw(t);
         return;
       }
     });
@@ -455,12 +532,7 @@
       scoreEl.textContent = score;
       emit('score', { total: score, label });
 
-      const timing = signedDiff >= 0 ? 'late' : 'early';
-      rating.textContent = `${label}  ${Math.abs(signedDiff).toFixed(0)}ms ${timing}`;
-      rating.className = 'show ' + cls;
       hitFlash = { color: HIT_COLORS[cls], until: performance.now() + 400 };
-      clearTimeout(ratingTimer);
-      ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
     }
 
     function doPick(emoji) {
@@ -508,37 +580,28 @@
       }
     });
 
-
-    // ── lane visualisation ──
-    const laneEl = document.getElementById('lane');
-    const lc = laneEl.getContext('2d');
-    const LOOKAHEAD = 15;
-    const HIT_COLORS = { perfect: '#c084fc', great: '#22aadd', good: '#66bb44', bad: '#ff7766', miss: '#ccc' };
-    const ARROWS = { U: '↑', D: '↓', L: '←', R: '→' };
-    let hitFlash = null;
-
-    function resizeLane() {
-      laneEl.width = Math.min(window.innerWidth, 1024);
-      laneEl.height = 90;
-    }
-    resizeLane();
-    window.addEventListener('resize', resizeLane);
-
     function drawLane(t) {
-      const W = laneEl.width, H = laneEl.height;
+      const W = canvasCSS.w, H = LANE_H;
       const HIT_X = 72;
       const pps = (W - HIT_X) / LOOKAHEAD;
 
-      lc.clearRect(0, 0, W, H);
+      gc.save();
+      gc.translate(0, canvasCSS.dfH);
+
+      // lane background
+      gc.fillStyle = 'rgba(255,255,255,0.1)';
+      gc.beginPath();
+      gc.roundRect(0, 0, W, H, 12);
+      gc.fill();
 
       // hit line
       const flashActive = hitFlash && performance.now() < hitFlash.until;
-      lc.save();
-      lc.strokeStyle = flashActive ? hitFlash.color : 'rgba(255,255,255,0.4)';
-      lc.lineWidth = flashActive ? 3 : 2;
-      if (flashActive) { lc.shadowBlur = 16; lc.shadowColor = hitFlash.color; }
-      lc.beginPath(); lc.moveTo(HIT_X, 8); lc.lineTo(HIT_X, H - 8); lc.stroke();
-      lc.restore();
+      gc.save();
+      gc.strokeStyle = flashActive ? hitFlash.color : 'rgba(255,255,255,0.4)';
+      gc.lineWidth = flashActive ? 3 : 2;
+      if (flashActive) { gc.shadowBlur = 16; gc.shadowColor = hitFlash.color; }
+      gc.beginPath(); gc.moveTo(HIT_X, 8); gc.lineTo(HIT_X, H - 8); gc.stroke();
+      gc.restore();
 
       // notes
       matchedTaps.forEach((m, i) => {
@@ -546,13 +609,15 @@
         if (dt > LOOKAHEAD || dt < -0.4) return;
         const x = HIT_X + dt * pps;
         const scored = scoredTaps.has(i);
-        lc.save();
-        lc.shadowBlur = scored ? 0 : 12;
-        lc.shadowColor = 'rgba(255,255,255,0.8)';
-        lc.fillStyle = scored ? 'rgba(255,255,255,0.2)' : '#fff';
-        lc.fillRect(x - 3, 12, 6, H - 24);
-        lc.restore();
+        gc.save();
+        gc.shadowBlur = scored ? 0 : 12;
+        gc.shadowColor = 'rgba(255,255,255,0.8)';
+        gc.fillStyle = scored ? 'rgba(255,255,255,0.2)' : '#fff';
+        gc.fillRect(x - 3, 12, 6, H - 24);
+        gc.restore();
       });
+
+      gc.restore();
     }
 
     function tick() {
@@ -561,27 +626,18 @@
 
       const nextTap = matchedTaps.find((m, i) => m.beat > t && !scoredTaps.has(i));
       countdown.textContent = nextTap ? `${(nextTap.beat - t).toFixed(1)}s` : '';
-      renderSequence();
 
-      const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-      const dur = audio.duration;
-      document.getElementById('duration').textContent = isNaN(dur) ? '' : `${fmt(t)} / ${fmt(dur)}`;
 
       const missIdx = matchedTaps.findLastIndex(m => m.beat <= t - 0.2);
       if (missIdx >= 0 && !scoredTaps.has(missIdx)) {
         scoredTaps.add(missIdx);
         inputBuffer = '';
         perfectStreak = 0;
-        rating.textContent = 'MISS';
-        rating.className = 'show miss';
         emit('score', { total: score, label: 'MISS' });
         hitFlash = { color: HIT_COLORS.miss, until: performance.now() + 300 };
-        clearTimeout(ratingTimer);
-        ratingTimer = setTimeout(() => rating.classList.remove('show'), 600);
       }
 
-      drawLane(t);
-      drawDancefloor();
+      draw(t);
       requestAnimationFrame(tick);
     }
   </script>
