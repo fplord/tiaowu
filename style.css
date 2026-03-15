@@ -262,3 +262,212 @@ body {
   touch-action: manipulation;
 }
 audio { display: none; }
+
+/* ── room select ── */
+#room-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+#join-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+#room-code-input {
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 10px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 22px;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  text-align: center;
+  width: 130px;
+  padding: 10px 8px;
+  outline: none;
+}
+
+#room-code-input:focus {
+  border-color: rgba(255,255,255,0.6);
+}
+
+#create-room-btn, #join-room-btn {
+  height: 52px;
+  border-radius: 8px;
+  border: none;
+  background: #2979ff;
+  color: #fff;
+  font-family: monospace;
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+  padding: 0 20px;
+  box-shadow: 0 4px 16px rgba(41,121,255,0.4);
+  transition: background 0.15s, transform 0.1s;
+}
+
+#create-room-btn:active, #join-room-btn:active {
+  transform: scale(0.97);
+}
+
+#room-select-error {
+  font-size: 13px;
+  color: #f76;
+  letter-spacing: 1px;
+  height: 20px;
+}
+
+/* ── room list ── */
+#room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 300px;
+  max-width: 420px;
+  width: 100%;
+}
+
+#room-list-empty {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.room-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.room-row.locked {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.room-row:not(.locked):hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.35);
+}
+
+.room-code {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 4px;
+  color: #7df;
+}
+
+.room-emojis {
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+.room-song {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 1px;
+}
+
+.room-state {
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.1);
+}
+
+.room-state.lobby     { color: #4ade80; background: rgba(74,222,128,0.12); }
+.room-state.countdown { color: #fbbf24; background: rgba(251,191,36,0.12); }
+.room-state.playing   { color: #f87171; background: rgba(248,113,113,0.12); }
+
+/* ── room code display in lobby ── */
+#room-code-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.7);
+}
+
+#room-code-text {
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 6px;
+  color: #7df;
+}
+
+#copy-link-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.8);
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 6px 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+/* ── ready row ── */
+#ready-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#leave-lobby-btn {
+  width: 160px;
+  height: 60px;
+  border-radius: 8px;
+  border: none;
+  background: #e53935;
+  color: #fff;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-shadow: 0 1px 3px rgba(80,0,0,0.4);
+  box-shadow: 0 4px 16px rgba(229,57,53,0.5);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+#leave-lobby-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(229,57,53,0.4);
+}
+
+#leave-game-btn {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,100,80,0.4);
+  color: rgba(255,140,120,0.9);
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: manipulation;
+  align-self: flex-end;
+  margin-right: 12px;
+}

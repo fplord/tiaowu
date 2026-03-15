@@ -10,15 +10,32 @@
 </head>
 <body>
 
-  <!-- tap to start overlay -->
-  <!-- lobby -->
-  <div id="lobby">
+  <!-- room select -->
+  <div id="room-select">
     <div id="game-title">ANIMAL DANCE BIT</div>
+    <button id="create-room-btn">CREATE ROOM</button>
+    <div id="join-row">
+      <input id="room-code-input" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false">
+      <button id="join-room-btn">JOIN</button>
+    </div>
+    <div id="room-select-error"></div>
+    <div id="room-list"></div>
+  </div>
+
+  <!-- lobby -->
+  <div id="lobby" style="display:none">
+    <div id="room-code-display">
+      ROOM <span id="room-code-text"></span>
+      <button id="copy-link-btn">COPY LINK</button>
+    </div>
     <div id="your-player">your player is <span id="my-emoji"></span></div>
     <div id="emoji-picker"></div>
     <select id="song-picker"></select>
     <div id="player-list"></div>
-    <button id="ready-btn">READY</button>
+    <div id="ready-row">
+      <button id="ready-btn">READY</button>
+      <button id="leave-lobby-btn">LEAVE</button>
+    </div>
     <div id="lobby-countdown"></div>
   </div>
 
@@ -35,6 +52,7 @@
     <canvas id="game-canvas"></canvas>
 
     <div id="bottom">
+      <button id="leave-game-btn">LEAVE</button>
       <div id="controls" style="display:none">
         <button id="export">export</button>
         <button id="btn">▶</button>
@@ -46,8 +64,10 @@
 
   <script>
     // ── websocket ──
-    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
-    const emit = (type, payload = {}) => ws.send(JSON.stringify({ type, ...payload }));
+    let ws, currentRoomCode;
+    function emit(type, payload = {}) {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...payload }));
+    }
     let myEmoji = null;
     let isReady = false;
 
@@ -279,69 +299,6 @@
       draw(audio.currentTime);
     }
 
-    ws.onmessage = ({ data }) => {
-      const msg = JSON.parse(data);
-
-      if (msg.type === 'pick_rejected') {
-        const btn = pickerEl.querySelector(`[data-emoji="${msg.emoji}"]`);
-        if (btn) { btn.classList.add('rejected'); setTimeout(() => btn.classList.remove('rejected'), 500); }
-      }
-
-      if (msg.type === 'assigned') {
-        myEmoji = msg.emoji;
-        document.getElementById('my-emoji').textContent = msg.emoji;
-        renderPicker();
-        loadSong(msg.song);
-        if (msg.gameState === 'playing') {
-          document.getElementById('ready-btn').textContent = 'waiting...';
-          document.getElementById('ready-btn').disabled = true;
-        }
-      }
-
-      if (msg.type === 'song') {
-        loadSong(msg.song);
-      }
-
-      if (msg.type === 'players') {
-        takenEmojis = msg.players.map(p => p.emoji);
-        renderPicker();
-        playerOrder = msg.players.map(p => p.emoji);
-        const list = document.getElementById('player-list');
-        list.innerHTML = msg.players.map(p => `
-          <div class="player-row">
-            <span>${p.emoji}</span>
-            <span class="status ${p.ready ? 'ready' : ''}">${p.ready ? 'ready' : 'waiting'}</span>
-          </div>
-        `).join('');
-      }
-
-      if (msg.type === 'countdown') {
-        countdown.textContent = msg.n;
-        document.getElementById('lobby-countdown').textContent = msg.n;
-      }
-
-      if (msg.type === 'start') {
-        document.getElementById('lobby').style.display = 'none';
-        document.getElementById('game').style.display = 'flex';
-        ctx.resume();
-        audio.play();
-        btn.textContent = '⏸';
-        tick();
-      }
-
-      if (msg.type === 'scoreboard') {
-        lastBoard = msg.board;
-        if (msg.label && msg.emoji) {
-          shownLabels[msg.emoji] = msg.label;
-          clearTimeout(labelTimers[msg.emoji]);
-          labelTimers[msg.emoji] = setTimeout(() => { delete shownLabels[msg.emoji]; renderBoard(); }, 1200);
-          if (msg.label.startsWith('PERFECT')) {
-            triggerPerfect(msg.emoji);
-          }
-        }
-        renderBoard();
-      }
-    };
 
     const readyBtn = document.getElementById('ready-btn');
     const pickerEl = document.getElementById('emoji-picker');
@@ -923,6 +880,157 @@
 
       draw(t);
       requestAnimationFrame(tick);
+    }
+    // ── room system ──
+    const ROOM_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    function randomRoomCode() {
+      return Array.from({ length: 4 }, () => ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)]).join('');
+    }
+
+    function joinRoom(code) {
+      currentRoomCode = code;
+      history.pushState(null, '', '?room=' + code);
+      document.getElementById('room-code-text').textContent = code;
+      document.getElementById('room-select').style.display = 'none';
+      document.getElementById('lobby').style.display = 'flex';
+      document.getElementById('room-select-error').textContent = '';
+
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}?room=${code}`);
+
+      ws.onmessage = ({ data }) => {
+        const msg = JSON.parse(data);
+
+        if (msg.type === 'pick_rejected') {
+          const btn = pickerEl.querySelector(`[data-emoji="${msg.emoji}"]`);
+          if (btn) { btn.classList.add('rejected'); setTimeout(() => btn.classList.remove('rejected'), 500); }
+        }
+
+        if (msg.type === 'assigned') {
+          myEmoji = msg.emoji;
+          document.getElementById('my-emoji').textContent = msg.emoji;
+          renderPicker();
+          loadSong(msg.song);
+          if (msg.gameState === 'playing') {
+            document.getElementById('ready-btn').textContent = 'waiting...';
+            document.getElementById('ready-btn').disabled = true;
+          }
+        }
+
+        if (msg.type === 'song') {
+          loadSong(msg.song);
+        }
+
+        if (msg.type === 'players') {
+          takenEmojis = msg.players.map(p => p.emoji);
+          renderPicker();
+          playerOrder = msg.players.map(p => p.emoji);
+          const list = document.getElementById('player-list');
+          list.innerHTML = msg.players.map(p => `
+            <div class="player-row">
+              <span>${p.emoji}</span>
+              <span class="status ${p.ready ? 'ready' : ''}">${p.ready ? 'ready' : 'waiting'}</span>
+            </div>
+          `).join('');
+        }
+
+        if (msg.type === 'countdown') {
+          countdown.textContent = msg.n;
+          document.getElementById('lobby-countdown').textContent = msg.n;
+        }
+
+        if (msg.type === 'start') {
+          document.getElementById('lobby').style.display = 'none';
+          document.getElementById('game').style.display = 'flex';
+          ctx.resume();
+          audio.play();
+          btn.textContent = '⏸';
+          tick();
+        }
+
+        if (msg.type === 'scoreboard') {
+          lastBoard = msg.board;
+          if (msg.label && msg.emoji) {
+            shownLabels[msg.emoji] = msg.label;
+            clearTimeout(labelTimers[msg.emoji]);
+            labelTimers[msg.emoji] = setTimeout(() => { delete shownLabels[msg.emoji]; renderBoard(); }, 1200);
+            if (msg.label.startsWith('PERFECT')) {
+              triggerPerfect(msg.emoji);
+            }
+          }
+          renderBoard();
+        }
+      };
+
+      ws.onclose = (e) => {
+        const msg = e.code === 4001 ? 'Room is full (max 12 players).'
+                   : e.code === 4000 ? 'Invalid room code.'
+                   : e.code === 4002 ? 'Game already in progress.'
+                   : 'Disconnected.';
+        document.getElementById('room-select-error').textContent = msg;
+        document.getElementById('room-select').style.display = 'flex';
+        document.getElementById('lobby').style.display = 'none';
+        document.getElementById('game').style.display = 'none';
+      };
+    }
+
+    // room-select buttons
+    document.getElementById('create-room-btn').addEventListener('click', () => joinRoom(randomRoomCode()));
+    document.getElementById('join-room-btn').addEventListener('click', () => {
+      const val = document.getElementById('room-code-input').value.toUpperCase().trim();
+      if (!/^[A-Z0-9]{4}$/.test(val)) {
+        document.getElementById('room-select-error').textContent = 'Enter a 4-character room code.';
+        return;
+      }
+      joinRoom(val);
+    });
+    document.getElementById('room-code-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('join-room-btn').click();
+    });
+
+    // leave buttons
+    document.getElementById('leave-lobby-btn').addEventListener('click', () => ws && ws.close());
+    document.getElementById('leave-game-btn').addEventListener('click', () => ws && ws.close());
+
+    // copy link button
+    document.getElementById('copy-link-btn').addEventListener('click', () => {
+      navigator.clipboard.writeText(`${location.origin}?room=${currentRoomCode}`);
+      const btn = document.getElementById('copy-link-btn');
+      btn.textContent = 'COPIED!';
+      setTimeout(() => btn.textContent = 'COPY LINK', 2000);
+    });
+
+    // ── room list ──
+    const SONG_NAMES = { xiguan_manyao: '习惯慢摇', trouble_maker: 'Trouble Maker', golden: 'Golden' };
+    const STATE_LABELS = { lobby: 'WAITING', countdown: 'STARTING', playing: 'IN GAME' };
+
+    function renderRoomList(rooms) {
+      const el = document.getElementById('room-list');
+      if (!rooms.length) { el.innerHTML = '<div id="room-list-empty">no active rooms</div>'; return; }
+      el.innerHTML = rooms.map(r => `
+        <div class="room-row ${r.gameState !== 'lobby' ? 'locked' : ''}" data-code="${r.code}">
+          <span class="room-code">${r.code}</span>
+          <span class="room-emojis">${r.players.join('')}</span>
+          <span class="room-song">${SONG_NAMES[r.song] || r.song}</span>
+          <span class="room-state ${r.gameState}">${STATE_LABELS[r.gameState] || r.gameState}</span>
+        </div>
+      `).join('');
+      el.querySelectorAll('.room-row:not(.locked)').forEach(row => {
+        row.addEventListener('click', () => joinRoom(row.dataset.code));
+      });
+    }
+
+    function pollRooms() {
+      fetch('/api/rooms').then(r => r.json()).then(renderRoomList).catch(() => {});
+    }
+
+    pollRooms();
+    setInterval(pollRooms, 3000);
+
+    // auto-join from URL
+    const roomFromUrl = new URLSearchParams(location.search).get('room');
+    if (roomFromUrl && /^[A-Z0-9]{4}$/i.test(roomFromUrl)) {
+      joinRoom(roomFromUrl.toUpperCase());
     }
   </script>
 </body>
